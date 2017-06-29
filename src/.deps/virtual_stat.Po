@@ -7,7 +7,7 @@ virtual_stat.o: virtual_stat.c /usr/include/stdc-predef.h virtual_stat.h \
  /usr/include/x86_64-linux-gnu/bits/types.h \
  /usr/include/x86_64-linux-gnu/bits/typesizes.h /usr/include/time.h \
  /usr/include/x86_64-linux-gnu/bits/stat.h \
- /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stddef.h \
+ /usr/lib/gcc/x86_64-linux-gnu/5/include/stddef.h \
  /usr/include/x86_64-linux-gnu/bits/time.h /usr/include/xlocale.h \
  /usr/include/string.h /usr/include/x86_64-linux-gnu/bits/string.h \
  /usr/include/x86_64-linux-gnu/bits/string2.h /usr/include/endian.h \
@@ -40,7 +40,7 @@ virtual_stat.h:
 
 /usr/include/x86_64-linux-gnu/bits/stat.h:
 
-/usr/lib/gcc/x86_64-linux-gnu/4.8/include/stddef.h:
+/usr/lib/gcc/x86_64-linux-gnu/5/include/stddef.h:
 
 /usr/include/x86_64-linux-gnu/bits/time.h:
 

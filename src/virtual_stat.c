@@ -1,5 +1,5 @@
-#include <virtual_stat.h>
-
+#include "virtual_stat.h"
+#include "rootelements.h"
 
 void create_dir_element(struct stat* statbuf,int year,int mon,int day,int hour,int min,int sec)
 {
@@ -41,7 +41,7 @@ void create_stat_element(struct stat* statbuf,int year,int mon,int day,int hour,
     return ;
 }
 
-int is_root_element(char* path)
+int is_root_element(const char* path)
 {
     int i=0;
     for (i=0;i<ROOTDIRELEMENTS_NUMBER;i++)

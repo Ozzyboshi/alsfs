@@ -15,9 +15,10 @@
   coming from alsfs to the amiga by a serial connection.
   
 */
-
+#define _GNU_SOURCE
 #include "params.h"
 #include "rootelements.h"
+#include "virtual_stat.h"
 #include <time.h>
 #include <ctype.h>
 #include <dirent.h>
@@ -122,31 +123,41 @@ int bb_getattr(const char *path, struct stat *statbuf)
 {
     int retstat;
     char fpath[PATH_MAX];
-	int found=0;
-	int i=0;
-	char* url;
-	char* out;
-	CURL *curl;
-	CURLcode res;
-	struct url_data data;
-	data.size = 0;
+    int found=0;
+    int i=0;
+    char* url;
+    char* out;
+    CURL *curl;
+    CURLcode res;
+    struct url_data data;
+    data.size = 0;
     data.data = malloc(4096);
 
-	if (!strcmp(path,"/"))
-	{
-		log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",path, statbuf);
-    	bb_fullpath(fpath, path);
-
-    	retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
+    if (!strcmp(path,"/"))
+    {
+  	log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",path, statbuf);
+       	bb_fullpath(fpath, path);
+       	log_msg("vafo a cercare %s",fpath);
+       	retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
+       	log_stat(statbuf);
+       	return retstat;
+    }
     
-    	log_stat(statbuf);
-    
-    	return retstat;
-	}
+    if (countPathDepth(path)==1 && !is_root_element(path))
+    {
+        log_msg("\nbb_getattr(path=\"%s\", skip because first level invalid dir)\n",path);
+        return -1;
+  	log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",path, statbuf);
+       	bb_fullpath(fpath, path);
+       	log_msg("vafo a cercare %s",fpath);
+       	retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
+       	log_stat(statbuf);
+       	return retstat;
+    }
 
-	for (i=0;found==0&&i<ROOTDIRELEMENTS_NUMBER;i++)
-		if (strlen(path)>1 && !strcmp(ROOTDIRELEMENTS[i],&path[1]))
-			found=1;
+    /*for (i=0;found==0&&i<ROOTDIRELEMENTS_NUMBER;i++)
+	if (strlen(path)>1 && !strcmp(ROOTDIRELEMENTS[i],&path[1]))
+        	found=1;*/
 
     
     log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",
@@ -157,7 +168,7 @@ int bb_getattr(const char *path, struct stat *statbuf)
     //if (found)
     if (is_root_element(path))
     {
-        create_dir_element(statbuf,2001,7,4,10,20,30);
+        create_dir_element(statbuf,2017,7,4,10,20,30);
         return 0;
 
 		struct tm info;
@@ -193,7 +204,7 @@ int bb_getattr(const char *path, struct stat *statbuf)
 
 		return 0;
     }
-	else
+    else
 	{
 			for (found=0,i=0;found==0&&i<ROOTDIRELEMENTS_NUMBER;i++)
 			{
@@ -243,11 +254,16 @@ int bb_getattr(const char *path, struct stat *statbuf)
 			else
 			{
 
-				url=malloc(strlen(URL_LISTSTAT)+strlen(path)+1);
-				strcpy(url,URL_LISTSTAT);
+				/*url=malloc(strlen(URL_LISTSTAT)+strlen(path)+1);
+				strcpy(url,URL_LISTSTAT);*/
 				out=malloc(strlen(path)+1);
 				urlToAmiga(path,out);
-				strcat(url,out);
+				/*strcat(url,out);*/
+				char *urlEncoded = curl_easy_escape(curl, out, 0);
+				if (urlEncoded) log_msg("urlencoded : ##%s##",urlEncoded);
+				if (asprintf(&url,"http://%s/%s?path=%s",BB_DATA->alsfs_webserver,LISTSTAT,urlEncoded)==-1)
+					fprintf(stderr, "asprintf() failed");
+				curl_free(urlEncoded);
 				free(out);
 				log_msg("url : ##%s##",url);
 
@@ -267,7 +283,10 @@ int bb_getattr(const char *path, struct stat *statbuf)
 				log_msg("data : ##%s##",data.data);
 
 				json_object * jobj = json_tokener_parse(data.data);
-				const char *st_size = json_object_get_string(json_object_object_get(jobj, "st_size"));
+				json_object* returnObj;
+				json_object_object_get_ex(jobj, "st_size",&returnObj);
+				const char *st_size = json_object_get_string(returnObj);
+				//const char *st_size = json_object_get_string(json_object_object_get(jobj, "st_size"));
 				log_msg("stsize : ##%s##",st_size);
 
 				struct tm info;
@@ -841,16 +860,18 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 {
 	int i=0;
 	int arraylen;
-    int retstat = 0;
-    DIR *dp;
-    struct dirent *de;
+	int retstat = 0;
+	DIR *dp;
+	struct dirent *de;
 	char* url;
 	CURL *curl;
-  	CURLcode res;
+	CURLcode res;
 	struct url_data data;
 	data.size = 0;
-    data.data = malloc(4096);
- 	char* out;
+	data.data = malloc(4096);
+	char* out=NULL;
+
+	curl = curl_easy_init();
   	
 	if (!strcmp(path,"/"))
 	{
@@ -868,31 +889,41 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 		{
 			if (filler(buf, ROOTDIRELEMENTS[i], NULL, 0) != 0) 
 			{
-		    	log_msg("    ERROR bb_readdir filler:  buffer full");
-		    	return -ENOMEM;
+			    	log_msg("    ERROR bb_readdir filler:  buffer full");
+				if (curl) curl_easy_cleanup(curl);
+			    	return -ENOMEM;
 			}
 		}
 		return 0;
 	}
 	else if (!strcmp(path,"/volumes"))
 	{
-		printf("%s\n",BB_DATA->alsfs_webserver);
+/*		printf("%s\n",BB_DATA->alsfs_webserver);
 		url=malloc(strlen(URL_LISTVOLUMES)+1);
-		strcpy(url,URL_LISTVOLUMES);
+		strcpy(url,URL_LISTVOLUMES);*/
+		if (asprintf(&url,"http://%s/%s",BB_DATA->alsfs_webserver,LISTVOLUMES)==-1)
+			fprintf(stderr, "asprintf() failed");
 	}		
 	else
 	{
-		url=malloc(strlen(URL_LISTCONTENT)+strlen(path)+1);
-		strcpy(url,URL_LISTCONTENT);
+		/*url=malloc(strlen(URL_LISTCONTENT)+strlen(path)+1);
+		strcpy(url,URL_LISTCONTENT);*/
 		out=malloc(strlen(path)+1);
 		urlToAmiga(path,out);
-		strcat(url,out);
+		char *urlEncoded = curl_easy_escape(curl, out, 0);
+		if (urlEncoded) log_msg("urlencoded : ##%s##",urlEncoded);
+		//strcat(url,out);
+		
+		if (asprintf(&url,"http://%s/%s?path=%s",BB_DATA->alsfs_webserver,LISTCONTENT,urlEncoded)==-1)
+			fprintf(stderr, "asprintf() failed");
 		free(out);
 		log_msg("url : ##%s##",url);
+		curl_free(urlEncoded);
 	}
-	curl = curl_easy_init();
+	
   	if(curl && strlen(url)) 
 	{
+		
 		curl_easy_setopt(curl, CURLOPT_URL,url);
 		free(url);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
@@ -1203,7 +1234,7 @@ struct fuse_operations bb_oper = {
 
 void alsfs_usage()
 {
-    fprintf(stderr, "usage:  bbfs [FUSE and mount options] amigalinuxserialfilesystemwebserver mountPoint\n");
+    fprintf(stderr, "usage:  alsfs [FUSE and mount options] amigalinuxserialfilesystemwebserver mountPoint\n");
     abort();
 }
 
