@@ -286,6 +286,9 @@ int bb_getattr(const char *path, struct stat *statbuf)
 				json_object* returnObj;
 				json_object_object_get_ex(jobj, "st_size",&returnObj);
 				const char *st_size = json_object_get_string(returnObj);
+				
+				json_object_object_get_ex(jobj, "directory",&returnObj);
+                                int directory = atoi(json_object_get_string(returnObj));
 				//const char *st_size = json_object_get_string(json_object_object_get(jobj, "st_size"));
 				log_msg("stsize : ##%s##",st_size);
 
@@ -308,7 +311,8 @@ int bb_getattr(const char *path, struct stat *statbuf)
 				statbuf->st_size=atol(st_size);
 				statbuf->st_dev = 0;
 				statbuf->st_ino = 0;
-				statbuf->st_mode = 0100644;
+				if (directory) statbuf->st_mode = 0040644;
+				else statbuf->st_mode = 0100644;
 				statbuf->st_nlink = 0;
 				statbuf->st_uid = 0;
 				statbuf->st_gid = 0;
