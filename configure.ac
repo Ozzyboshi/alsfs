@@ -17,6 +17,7 @@ AC_CHECK_HEADERS([fcntl.h limits.h stdlib.h string.h sys/statvfs.h unistd.h utim
 PKG_CHECK_MODULES(FUSE, fuse)
 PKG_CHECK_MODULES(CURL, libcurl)
 PKG_CHECK_MODULES(JSONC, json-c)
+PKG_CHECK_MODULES(CRYPTO, libcrypto)
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_UID_T

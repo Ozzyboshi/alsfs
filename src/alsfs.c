@@ -19,6 +19,7 @@
 #include "params.h"
 #include "rootelements.h"
 #include "virtual_stat.h"
+#include "alsfs_curl.h"
 #include <time.h>
 #include <ctype.h>
 #include <dirent.h>
@@ -132,6 +133,7 @@ int bb_getattr(const char *path, struct stat *statbuf)
     struct url_data data;
     data.size = 0;
     data.data = malloc(4096);
+    long http_code = 0;
 
     if (!strcmp(path,"/"))
     {
@@ -190,13 +192,13 @@ int bb_getattr(const char *path, struct stat *statbuf)
 		statbuf->st_size=111;
 		statbuf->st_dev = 0;
 		statbuf->st_ino = 0;
-		statbuf->st_mode = 0040644;
+		statbuf->st_mode = 0040777;
 		statbuf->st_nlink = 0;
 		statbuf->st_uid = 0;
 		statbuf->st_gid = 0;
 		statbuf->st_rdev = 0;
 		//st_size = 0
-		statbuf->st_blksize = 4096;
+		statbuf->st_blksize = ALSFS_BLK_SIZE;
 		statbuf->st_blocks = 0;
 		statbuf->st_atime = lol;
 		statbuf->st_mtime = lol;
@@ -237,13 +239,13 @@ int bb_getattr(const char *path, struct stat *statbuf)
 				statbuf->st_size=111;
 				statbuf->st_dev = 0;
 				statbuf->st_ino = 0;
-				statbuf->st_mode = 0040644;
+				statbuf->st_mode = 0040777;
 				statbuf->st_nlink = 0;
 				statbuf->st_uid = 0;
 				statbuf->st_gid = 0;
 				statbuf->st_rdev = 0;
 				//st_size = 0
-				statbuf->st_blksize = 4096;
+				statbuf->st_blksize = ALSFS_BLK_SIZE;
 				statbuf->st_blocks = 0;
 				statbuf->st_atime = lol;
 				statbuf->st_mtime = lol;
@@ -277,7 +279,15 @@ int bb_getattr(const char *path, struct stat *statbuf)
 					res = curl_easy_perform(curl);
 					if(res != CURLE_OK)
 					 		log_msg("curl_easy_perform() failed: %s %d\n",curl_easy_strerror(res),res);
+					
+                                        curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
 					curl_easy_cleanup(curl);
+				}
+				if (http_code == 404)
+				{
+				    log_msg("### File not found ###\n");
+				    memset (statbuf,0,sizeof(struct stat));
+				    return -2;
 				}
 
 				log_msg("data : ##%s##",data.data);
@@ -311,14 +321,14 @@ int bb_getattr(const char *path, struct stat *statbuf)
 				statbuf->st_size=atol(st_size);
 				statbuf->st_dev = 0;
 				statbuf->st_ino = 0;
-				if (directory) statbuf->st_mode = 0040644;
-				else statbuf->st_mode = 0100644;
+				if (directory) statbuf->st_mode = 0040777;
+				else statbuf->st_mode = 0100777;
 				statbuf->st_nlink = 0;
 				statbuf->st_uid = 0;
 				statbuf->st_gid = 0;
 				statbuf->st_rdev = 0;
 				//st_size = 0
-				statbuf->st_blksize = 4096;
+				statbuf->st_blksize = ALSFS_BLK_SIZE;
 				statbuf->st_blocks = 0;
 				statbuf->st_atime = lol;
 				statbuf->st_mtime = lol;
@@ -373,6 +383,7 @@ int bb_mknod(const char *path, mode_t mode, dev_t dev)
 {
     int retstat;
     char fpath[PATH_MAX];
+    char* out;
     
     log_msg("\nbb_mknod(path=\"%s\", mode=0%3o, dev=%lld)\n",
 	  path, mode, dev);
@@ -384,9 +395,16 @@ int bb_mknod(const char *path, mode_t mode, dev_t dev)
     // make a fifo, but saying it should never actually be used for
     // that.
     if (S_ISREG(mode)) {
-	retstat = log_syscall("open", open(fpath, O_CREAT | O_EXCL | O_WRONLY, mode), 0);
-	if (retstat >= 0)
-	    retstat = log_syscall("close", close(retstat), 0);
+		out=malloc(strlen(path)+1);
+		urlToAmiga(path,out);
+		long http_response=curl_post_create_empty_file(out);
+		free(out);
+		if (http_response=200) return 0;
+		return -1;
+		
+		/*retstat = log_syscall("open", open(fpath, O_CREAT | O_EXCL | O_WRONLY, mode), 0);
+		if (retstat >= 0)
+			retstat = log_syscall("close", close(retstat), 0);*/
     } else
 	if (S_ISFIFO(mode))
 	    retstat = log_syscall("mkfifo", mkfifo(fpath, mode), 0);
@@ -508,6 +526,7 @@ int bb_truncate(const char *path, off_t newsize)
     
     log_msg("\nbb_truncate(path=\"%s\", newsize=%lld)\n",
 	    path, newsize);
+    return 0;
     bb_fullpath(fpath, path);
 
     return log_syscall("truncate", truncate(fpath, newsize), 0);
@@ -544,6 +563,7 @@ int bb_open(const char *path, struct fuse_file_info *fi)
     
     log_msg("\nbb_open(path\"%s\", fi=0x%08x)\n",
 	    path, fi);
+    return 0;
     bb_fullpath(fpath, path);
 
     // if the open call succeeds, my retstat is the file descriptor,
@@ -602,10 +622,24 @@ int bb_write(const char *path, const char *buf, size_t size, off_t offset,
 	     struct fuse_file_info *fi)
 {
     int retstat = 0;
+    char* out;
+	char* rawdata;
     
     log_msg("\nbb_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 	    path, buf, size, offset, fi
 	    );
+	
+	out=malloc(strlen(path)+1);
+	urlToAmiga(path,out);
+	rawdata=malloc(size+1);
+	memset(rawdata,0,size+1);
+	memcpy(rawdata,buf,size);
+	log_msg("Buf : %s",rawdata);
+	long res=curl_post(out,rawdata,size,offset);
+	free(out);
+	free(rawdata);
+	log_msg("Torna %d",res);
+	return size;
     // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
 

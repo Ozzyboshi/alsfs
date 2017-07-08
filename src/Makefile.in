@@ -100,7 +100,7 @@ CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(bindir)"
 PROGRAMS = $(bin_PROGRAMS)
 am_alsfs_OBJECTS = alsfs.$(OBJEXT) log.$(OBJEXT) \
-	virtual_stat.$(OBJEXT)
+	virtual_stat.$(OBJEXT) alsfs_curl.$(OBJEXT)
 alsfs_OBJECTS = $(am_alsfs_OBJECTS)
 alsfs_LDADD = $(LDADD)
 alsfs_DEPENDENCIES =
@@ -174,6 +174,8 @@ CCDEPMODE = @CCDEPMODE@
 CFLAGS = @CFLAGS@
 CPP = @CPP@
 CPPFLAGS = @CPPFLAGS@
+CRYPTO_CFLAGS = @CRYPTO_CFLAGS@
+CRYPTO_LIBS = @CRYPTO_LIBS@
 CURL_CFLAGS = @CURL_CFLAGS@
 CURL_LIBS = @CURL_LIBS@
 CYGPATH_W = @CYGPATH_W@
@@ -259,9 +261,9 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-alsfs_SOURCES = alsfs.c log.c log.h  params.h rootelements.h virtual_stat.c virtual_stat.h
+alsfs_SOURCES = alsfs.c log.c log.h  params.h rootelements.h virtual_stat.c virtual_stat.h alsfs_curl.c alsfs_curl.h
 AM_CFLAGS = @FUSE_CFLAGS@ @JSONC_CFLAGS@
-LDADD = @FUSE_LIBS@ @CURL_LIBS@ @JSONC_LIBS@
+LDADD = @FUSE_LIBS@ @CURL_LIBS@ @JSONC_LIBS@ @CRYPTO_LIBS@
 all: config.h
 	$(MAKE) $(AM_MAKEFLAGS) all-am
 
@@ -365,6 +367,7 @@ distclean-compile:
 	-rm -f *.tab.c
 
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/alsfs.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/alsfs_curl.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/log.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/virtual_stat.Po@am__quote@
 

@@ -3,3 +3,4 @@ config.log
 config.status
 src/.deps
 autom4te.cache
+src/.deps

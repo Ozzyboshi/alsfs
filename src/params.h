@@ -1,11 +1,19 @@
 /*
-  Copyright (C) 2012 Joseph J. Pfeiffer, Jr., Ph.D. <pfeiffer@cs.nmsu.edu>
+  Amiga Linux Serial File System
+  Copyright (C) 2017 Alessio Garzi <gun101@email.it>
 
   This program can be distributed under the terms of the GNU GPLv3.
   See the file COPYING.
 
-  There are a couple of symbols that need to be #defined before
-  #including all the headers.
+  This code is derived from function prototypes found /usr/include/fuse/fuse.h
+  Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
+  His code is licensed under the LGPLv2.
+  A copy of that code is included in the file fuse.h
+  
+  The point of this FUSE filesystem is to navigate an amiga filesystem tree from a linux machine.
+  In order to work, alsfs needs to interface with alsnodews who is in charge of relaying and translating http requests
+  coming from alsfs to the amiga by a serial connection.
+  
 */
 
 #ifndef _PARAMS_H_
@@ -31,3 +39,5 @@ struct bb_state {
 #define BB_DATA ((struct bb_state *) fuse_get_context()->private_data)
 
 #endif
+
+#define ALSFS_BLK_SIZE 4096
