@@ -418,9 +418,17 @@ int bb_mknod(const char *path, mode_t mode, dev_t dev)
 int bb_mkdir(const char *path, mode_t mode)
 {
     char fpath[PATH_MAX];
-    
+    char* out;
     log_msg("\nbb_mkdir(path=\"%s\", mode=0%3o)\n",
 	    path, mode);
+	    
+	out=malloc(strlen(path)+1);
+	urlToAmiga(path,out);
+	long http_response=curl_post_create_empty_drawer(out);
+	free(out);
+	if (http_response=200) return 0;
+	return -1;
+		
     bb_fullpath(fpath, path);
 
     return log_syscall("mkdir", mkdir(fpath, mode), 0);
