@@ -480,6 +480,18 @@ int bb_rename(const char *path, const char *newpath)
 {
     char fpath[PATH_MAX];
     char fnewpath[PATH_MAX];
+    char* out;
+    char* out2;
+    
+    out=malloc(strlen(path)+1);
+	urlToAmiga(path,out);
+	out2=malloc(strlen(newpath)+1);
+	urlToAmiga(newpath,out2);
+    long http_response = curl_put_rename_file_drawer(out,out2);
+	free(out);
+	free(out2);
+	if (http_response=200) return 0;
+	return -1;
     
     log_msg("\nbb_rename(fpath=\"%s\", newpath=\"%s\")\n",
 	    path, newpath);

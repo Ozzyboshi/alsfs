@@ -123,3 +123,30 @@ long curl_post_create_empty_drawer(const char* amigadestination)
 	
 	return http_code;
 }
+
+long curl_put_rename_file_drawer(const char* oldname,const char* newname)
+{
+	json_object * jobj = json_object_new_object();
+	json_object *jstring = json_object_new_string(oldname);
+	json_object *jstring2 = json_object_new_string(newname);
+	json_object_object_add(jobj,"amigaoldfilename", jstring);
+	json_object_object_add(jobj,"amiganewfilename", jstring2);
+
+	long http_code=0;
+	CURL *curl = curl_easy_init();
+
+	curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.137.3:8081/renameFileOrDrawer");
+	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_object_to_json_string(jobj));
+	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+
+	struct curl_slist *headers=NULL;
+	headers = curl_slist_append(headers, "Content-Type: application/json");
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_perform(curl);
+	curl_slist_free_all(headers); /* free the header list */
+
+    curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
+	curl_easy_cleanup(curl);
+	
+	return http_code;
+}

@@ -8,4 +8,6 @@ static size_t read_callback(void *, size_t , size_t , void *);
 int Base64Encode(const unsigned char* , size_t , char** );
 long curl_post_create_empty_file(const char*);
 long curl_post_create_empty_drawer(const char*);
+long curl_put_rename_file_drawer(const char*,const char*);
+
 
