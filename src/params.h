@@ -26,9 +26,9 @@
 
 // need this to get pwrite().  I have to use setvbuf() instead of
 // setlinebuf() later in consequence.
-#define _XOPEN_SOURCE 500
+//#define _XOPEN_SOURCE 500
 
-// maintain bbfs state in here
+// maintain alsfs state in here
 #include <limits.h>
 #include <stdio.h>
 struct bb_state {
@@ -36,7 +36,7 @@ struct bb_state {
     char *rootdir;
     char* alsfs_webserver;
 };
-#define BB_DATA ((struct bb_state *) fuse_get_context()->private_data)
+#define ALSFS_DATA ((struct bb_state *) fuse_get_context()->private_data)
 
 #endif
 

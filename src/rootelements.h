@@ -1,9 +1,29 @@
-#define URL_LISTCONTENT "http://10.0.0.10:8081/listContent?path="
-#define URL_LISTVOLUMES "http://192.168.137.3:8081/listVolumes"
-#define URL_LISTSTAT "http://10.0.0.10:8081/stat?path="
+/*
+  Amiga Linux Serial File System
+  Copyright (C) 2017 Alessio Garzi <gun101@email.it>
+
+  This program can be distributed under the terms of the GNU GPLv3.
+  See the file COPYING.
+
+  This code is derived from function prototypes found /usr/include/fuse/fuse.h
+  Copyright (C) 2001-2007  Miklos Szeredi <miklos@szeredi.hu>
+  His code is licensed under the LGPLv2.
+  A copy of that code is included in the file fuse.h
+  
+  The point of this FUSE filesystem is to navigate an amiga filesystem tree from a linux machine.
+  In order to work, alsfs needs to interface with alsnodews who is in charge of relaying and translating http requests
+  coming from alsfs to the amiga by a serial connection.
+  
+*/
+
+
 #define LISTVOLUMES "listVolumes"
 #define LISTCONTENT "listContent"
 #define LISTSTAT "stat"
+#define STOREBINARY "storeBinary"
+#define RENAME "renameFileOrDrawer"
+#define MKDIR "createEmptyDrawer"
+#define TOUCH "createEmptyFile"
 
 #define ROOTDIRELEMENTS_NUMBER 3
 static const char *ROOTDIRELEMENTS[ROOTDIRELEMENTS_NUMBER]={"volumes","adf","hdf"};

@@ -19,7 +19,6 @@
 #include "params.h"
 #include "rootelements.h"
 #include "virtual_stat.h"
-#include "alsfs_curl.h"
 #include <time.h>
 #include <ctype.h>
 #include <dirent.h>
@@ -36,6 +35,8 @@
 #include <curl/curl.h>
 #include <json.h>
 #include <strings.h>
+#include "alsfs_curl.h"
+
 
 
 
@@ -64,12 +65,12 @@ size_t write_data(void *, size_t , size_t , struct url_data *);
 //  it.
 static void bb_fullpath(char fpath[PATH_MAX], const char *path)
 {
-    strcpy(fpath, BB_DATA->rootdir);
+    strcpy(fpath, ALSFS_DATA->rootdir);
     strncat(fpath, path, PATH_MAX); // ridiculously long paths will
 				    // break here
 
     log_msg("    bb_fullpath:  rootdir = \"%s\", path = \"%s\", fpath = \"%s\"\n",
-	    BB_DATA->rootdir, path, fpath);
+	    ALSFS_DATA->rootdir, path, fpath);
 }
 
 int countPathDepth(const char* path)
@@ -263,7 +264,7 @@ int bb_getattr(const char *path, struct stat *statbuf)
 				/*strcat(url,out);*/
 				char *urlEncoded = curl_easy_escape(curl, out, 0);
 				if (urlEncoded) log_msg("urlencoded : ##%s##",urlEncoded);
-				if (asprintf(&url,"http://%s/%s?path=%s",BB_DATA->alsfs_webserver,LISTSTAT,urlEncoded)==-1)
+				if (asprintf(&url,"http://%s/%s?path=%s",ALSFS_DATA->alsfs_webserver,LISTSTAT,urlEncoded)==-1)
 					fprintf(stderr, "asprintf() failed");
 				curl_free(urlEncoded);
 				free(out);
@@ -645,25 +646,17 @@ int bb_write(const char *path, const char *buf, size_t size, off_t offset,
     char* out;
 	char* rawdata;
     
-    log_msg("\nbb_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
-	    path, buf, size, offset, fi
-	    );
+    log_msg("\nbb_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",path, buf, size, offset, fi);
 	
 	out=malloc(strlen(path)+1);
 	urlToAmiga(path,out);
 	rawdata=malloc(size+1);
 	memset(rawdata,0,size+1);
 	memcpy(rawdata,buf,size);
-	log_msg("Buf : %s",rawdata);
-	long res=curl_post(out,rawdata,size,offset);
+	long res=curl_post_create_mknode(out,rawdata,size,offset);
 	free(out);
 	free(rawdata);
-	log_msg("Torna %d",res);
 	return size;
-    // no need to get fpath on this one, since I work from fi->fh not the path
-    log_fi(fi);
-
-    return log_syscall("pwrite", pwrite(fi->fh, buf, size, offset), 0);
 }
 
 /** Get file system statistics
@@ -959,7 +952,7 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 /*		printf("%s\n",BB_DATA->alsfs_webserver);
 		url=malloc(strlen(URL_LISTVOLUMES)+1);
 		strcpy(url,URL_LISTVOLUMES);*/
-		if (asprintf(&url,"http://%s/%s",BB_DATA->alsfs_webserver,LISTVOLUMES)==-1)
+		if (asprintf(&url,"http://%s/%s",ALSFS_DATA->alsfs_webserver,LISTVOLUMES)==-1)
 			fprintf(stderr, "asprintf() failed");
 	}		
 	else
@@ -972,7 +965,7 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 		if (urlEncoded) log_msg("urlencoded : ##%s##",urlEncoded);
 		//strcat(url,out);
 		
-		if (asprintf(&url,"http://%s/%s?path=%s",BB_DATA->alsfs_webserver,LISTCONTENT,urlEncoded)==-1)
+		if (asprintf(&url,"http://%s/%s?path=%s",ALSFS_DATA->alsfs_webserver,LISTCONTENT,urlEncoded)==-1)
 			fprintf(stderr, "asprintf() failed");
 		free(out);
 		log_msg("url : ##%s##",url);
@@ -1125,7 +1118,7 @@ void *bb_init(struct fuse_conn_info *conn)
     log_conn(conn);
     log_fuse_context(fuse_get_context());
     
-    return BB_DATA;
+    return ALSFS_DATA;
 }
 
 /**

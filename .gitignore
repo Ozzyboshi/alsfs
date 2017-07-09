@@ -5,3 +5,6 @@ src/.deps
 autom4te.cache
 src/.deps
 Makefile
+src/alsfs
+configure
+src/alsfs.o
