@@ -24,6 +24,7 @@
 #define RENAME "renameFileOrDrawer"
 #define MKDIR "createEmptyDrawer"
 #define TOUCH "createEmptyFile"
+#define READFILE "readFile"
 
 #define ROOTDIRELEMENTS_NUMBER 3
 static const char *ROOTDIRELEMENTS[ROOTDIRELEMENTS_NUMBER]={"volumes","adf","hdf"};

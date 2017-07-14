@@ -620,9 +620,74 @@ int bb_open(const char *path, struct fuse_file_info *fi)
 int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi)
 {
     int retstat = 0;
+    char* out;
+    char* httpbody;
+    int contBytes=0;
     
     log_msg("\nbb_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 	    path, buf, size, offset, fi);
+    
+    out=malloc(strlen(path)+1);
+	urlToAmiga(path,out);
+    
+    long http_response = curl_get_read_file(out,size,offset,&httpbody);
+    log_msg("HTTP RESPONSE: %d\n",http_response);
+    //log_msg("Buf vale : %s\n",httpbody);
+    //char* e = strchr(httpbody,10);
+    //log_msg("Il primo invio è alla posizione %d\n",(int)(e-httpbody));
+	free(out);
+	//if ((int)(e-httpbody)<=0){ log_msg("Ritorno senza fare nulla perche non ho trovato l'invio"); return 0;}
+	if (http_response == 200)
+	{
+		if (httpbody==NULL)
+		{
+			log_msg("httpbody is NULL ");
+			return 0;
+		}
+		char* base64Message=strtok(httpbody,"\n");
+		if (base64Message==NULL)
+		{
+			log_msg("Base64message is NULL (no LF found on %s)",httpbody);
+			return 0;
+		}
+		unsigned char* base64DecodeOutput;
+		size_t test;
+		char* strip;
+		if (asprintf(&strip,"%s\n",base64Message)==-1)
+			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+		//strip[strlen(strip)-1]=0;
+		//Base64Decode(strip, &base64DecodeOutput, &test);
+		int rawdataLength=0;
+		log_msg("Lunghezza messaggio %d\n",strlen(base64Message));
+		log_msg(" messaggio ##%s##\n",base64Message);
+		char *output = unbase64(strip, strlen(strip),&rawdataLength);
+		log_msg("Output binario: %d %d %d %d %d - length %d\n",(unsigned char) output[0],(unsigned char)output[1],(unsigned char)output[2],(unsigned char)output[3],(unsigned char)output[4],rawdataLength);
+		memcpy(buf,output,rawdataLength);
+		contBytes+=rawdataLength;
+		free(output);
+  
+		free(strip);
+		
+		while (base64Message=strtok(NULL,"\n"))
+		{
+			if (asprintf(&strip,"%s\n",base64Message)==-1)
+				log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+				
+			rawdataLength=0;
+			output = unbase64(strip, strlen(strip),&rawdataLength);
+			memcpy(buf+contBytes,output,rawdataLength);
+			contBytes+=rawdataLength;
+			free(output);
+			log_msg("##%s##",base64Message);
+		}
+		//memset(buf,EOF,size);
+		//memcpy(buf,httpbody,strlen(httpbody));
+		//memcpy(buf,"lollamelo",9);
+		return contBytes;
+	}
+	return EOF;
+    
+    
     // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
 
@@ -734,6 +799,7 @@ int bb_release(const char *path, struct fuse_file_info *fi)
 {
     log_msg("\nbb_release(path=\"%s\", fi=0x%08x)\n",
 	  path, fi);
+	  
     log_fi(fi);
 
     // We need to close the file.  Had we allocated any resources
@@ -953,7 +1019,7 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 		url=malloc(strlen(URL_LISTVOLUMES)+1);
 		strcpy(url,URL_LISTVOLUMES);*/
 		if (asprintf(&url,"http://%s/%s",ALSFS_DATA->alsfs_webserver,LISTVOLUMES)==-1)
-			fprintf(stderr, "asprintf() failed");
+			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
 	}		
 	else
 	{
@@ -966,7 +1032,7 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 		//strcat(url,out);
 		
 		if (asprintf(&url,"http://%s/%s?path=%s",ALSFS_DATA->alsfs_webserver,LISTCONTENT,urlEncoded)==-1)
-			fprintf(stderr, "asprintf() failed");
+			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
 		free(out);
 		log_msg("url : ##%s##",url);
 		curl_free(urlEncoded);
@@ -1222,6 +1288,10 @@ int bb_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *f
     
     log_msg("\nbb_fgetattr(path=\"%s\", statbuf=0x%08x, fi=0x%08x)\n",
 	    path, statbuf, fi);
+	    
+	return curl_stat_amiga_file(path,statbuf);
+
+	
     log_fi(fi);
 
     // On FreeBSD, trying to do anything with the mountpoint ends up

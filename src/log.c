@@ -48,7 +48,7 @@ void log_msg(const char *format, ...)
     va_list ap;
     va_start(ap, format);
 
-    vfprintf(BB_DATA->logfile, format, ap);
+    vfprintf(ALSFS_DATA->logfile, format, ap);
 }
 
 // Report errors to logfile and give -errno to caller

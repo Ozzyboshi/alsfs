@@ -21,12 +21,31 @@ struct WriteData {
   int sizeleft;
 };
 
-long amiga_js_call(const char*,json_object *,const char*);
+struct curl_url_data {
+    size_t size;
+    char* data;
+};
+
+size_t curl_write_data(void *, size_t , size_t , struct curl_url_data *);
+long amiga_js_call(const char*,json_object *,const char*,char**);
 static size_t read_callback(void *, size_t , size_t , void *);
 int Base64Encode(const unsigned char* , size_t , char** );
+int Base64Decode(char*, unsigned char**, size_t*);
 long curl_post_create_empty_file(const char*);
 long curl_post_create_empty_drawer(const char*);
 long curl_put_rename_file_drawer(const char*,const char*);
 long curl_post_create_mknode(const char*,char*,size_t,off_t);
+long curl_get_read_file(const char*,size_t,off_t,char**);
+int curl_stat_amiga_file(const char* path,struct stat *statbuf);
+char* trans_urlToAmiga(const char*,char*);
+int trans_countPathDepth(const char*);
+size_t calcDecodeLength(const char*);
+
+unsigned char *base64_decode(const char *,
+                             size_t ,
+                             size_t *);
+void build_decoding_table();
+void base64_cleanup();
 
 
+char *unbase64(unsigned char *, int,int*);
