@@ -40,10 +40,6 @@ int curl_stat_amiga_file(const char* path,struct stat *statbuf);
 char* trans_urlToAmiga(const char*,char*);
 int trans_countPathDepth(const char*);
 size_t calcDecodeLength(const char*);
-
-unsigned char *base64_decode(const char *,
-                             size_t ,
-                             size_t *);
 void build_decoding_table();
 void base64_cleanup();
 
