@@ -8,3 +8,4 @@ Makefile
 src/alsfs
 configure
 src/alsfs.o
+src/Makefile.in
