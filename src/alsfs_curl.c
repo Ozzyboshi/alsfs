@@ -252,6 +252,14 @@ long curl_get_read_file(const char* amigadestination,size_t size,off_t offset,ch
 	return 200;
 }
 
+long curl_delete_delete_file(const char* amigadestination)
+{
+	json_object * jobj = json_object_new_object();
+	json_object *jstring = json_object_new_string(amigadestination);
+	json_object_object_add(jobj,"amigafilename", jstring);
+	return amiga_js_call(DELETEFILE,jobj,"DELETE",NULL);
+}
+
 int curl_stat_amiga_file(const char* path,struct stat *statbuf)
 {
 	char * out;

@@ -438,10 +438,19 @@ int bb_mkdir(const char *path, mode_t mode)
 /** Remove a file */
 int bb_unlink(const char *path)
 {
+	char* out;
     char fpath[PATH_MAX];
     
     log_msg("bb_unlink(path=\"%s\")\n",
 	    path);
+	
+	out=malloc(strlen(path)+1);
+	urlToAmiga(path,out);
+	long http_response=curl_delete_delete_file(out);
+	free(out);
+	if (http_response=200) return 0;
+	return -1;
+	
     bb_fullpath(fpath, path);
 
     return log_syscall("unlink", unlink(fpath), 0);
@@ -450,10 +459,19 @@ int bb_unlink(const char *path)
 /** Remove a directory */
 int bb_rmdir(const char *path)
 {
+	char* out;
     char fpath[PATH_MAX];
     
     log_msg("bb_rmdir(path=\"%s\")\n",
 	    path);
+	    
+	out=malloc(strlen(path)+1);
+	urlToAmiga(path,out);
+	long http_response=curl_delete_delete_file(out);
+	free(out);
+	if (http_response=200) return 0;
+	return -1;
+	
     bb_fullpath(fpath, path);
 
     return log_syscall("rmdir", rmdir(fpath), 0);
@@ -987,6 +1005,9 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 	data.size = 0;
 	data.data = malloc(4096);
 	char* out=NULL;
+	
+	log_msg("\nbb_readdir(path=\"%s\", buf=0x%08x, filler=0x%08x, offset=%lld, fi=0x%08x)\n",
+	    path, buf, filler, offset, fi);
 
 	curl = curl_easy_init();
   	

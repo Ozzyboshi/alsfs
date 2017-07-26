@@ -25,6 +25,7 @@
 #define MKDIR "createEmptyDrawer"
 #define TOUCH "createEmptyFile"
 #define READFILE "readFile"
+#define DELETEFILE "deleteFile"
 
 #define ROOTDIRELEMENTS_NUMBER 3
 static const char *ROOTDIRELEMENTS[ROOTDIRELEMENTS_NUMBER]={"volumes","adf","hdf"};
