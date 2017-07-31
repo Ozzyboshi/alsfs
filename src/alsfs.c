@@ -300,10 +300,19 @@ int bb_getattr(const char *path, struct stat *statbuf)
 				
 				json_object_object_get_ex(jobj, "directory",&returnObj);
                                 int directory = atoi(json_object_get_string(returnObj));
+                                
+                                json_object_object_get_ex(jobj, "days",&returnObj);
+                                int days = atoi(json_object_get_string(returnObj));
+                                
+                                json_object_object_get_ex(jobj, "minutes",&returnObj);
+                                int minutes = atoi(json_object_get_string(returnObj));
+                                
+                                json_object_object_get_ex(jobj, "seconds",&returnObj);
+                                int seconds = atoi(json_object_get_string(returnObj));
 				//const char *st_size = json_object_get_string(json_object_object_get(jobj, "st_size"));
 				log_msg("stsize : ##%s##",st_size);
 
-				struct tm info;
+				/*struct tm info;
 		 		time_t lol;
 		
 				info.tm_year = 2001 - 1900;
@@ -313,8 +322,8 @@ int bb_getattr(const char *path, struct stat *statbuf)
 				info.tm_min = 20;
 				info.tm_sec = 30;
 				info.tm_isdst = -1;
-				lol = mktime(&info);
-
+				lol = mktime(&info);*/
+                                time_t amigatime = amigadate_to_pc(days,minutes,seconds);
 
 				bb_fullpath(fpath, "1");
 				//retstat = log_syscall("lstat", lstat("/root/fuse-tutorial-2016-03-25/src/rootdir/1", statbuf), 0);
@@ -331,9 +340,9 @@ int bb_getattr(const char *path, struct stat *statbuf)
 				//st_size = 0
 				statbuf->st_blksize = ALSFS_BLK_SIZE;
 				statbuf->st_blocks = 0;
-				statbuf->st_atime = lol;
-				statbuf->st_mtime = lol;
-				statbuf->st_ctime = lol;
+				statbuf->st_atime = amigatime;
+				statbuf->st_mtime = amigatime;
+				statbuf->st_ctime = amigatime;
 				return 0;
 			}
 	}
@@ -579,6 +588,23 @@ int bb_utime(const char *path, struct utimbuf *ubuf)
     
     log_msg("\nbb_utime(path=\"%s\", ubuf=0x%08x)\n",
 	    path, ubuf);
+	    
+    struct tm info;
+                time_t lol;
+     
+                info.tm_year = 2001 - 1900;
+            info.tm_mon = 7 - 1;
+            info.tm_mday = 4;
+            info.tm_hour = 10;
+            info.tm_min = 20;
+            info.tm_sec = 30;
+            info.tm_isdst = -1;
+                lol = mktime(&info);
+                ubuf->actime=lol;
+                ubuf->modtime=lol;
+    return 0;
+                
+	    
     bb_fullpath(fpath, path);
 
     return log_syscall("utime", utime(fpath, ubuf), 0);
@@ -756,6 +782,8 @@ int bb_statfs(const char *path, struct statvfs *statv)
     
     log_msg("\nbb_statfs(path=\"%s\", statv=0x%08x)\n",
 	    path, statv);
+    bzero(statv,sizeof(struct statvfs));
+    return 0;
     bb_fullpath(fpath, path);
     
     // get stats for underlying filesystem
@@ -817,6 +845,7 @@ int bb_release(const char *path, struct fuse_file_info *fi)
 {
     log_msg("\nbb_release(path=\"%s\", fi=0x%08x)\n",
 	  path, fi);
+    return 0;
 	  
     log_fi(fi);
 
