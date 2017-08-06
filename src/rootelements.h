@@ -18,6 +18,7 @@
 
 
 #define LISTVOLUMES "listVolumes"
+#define LISTFLOPPIES "listFloppies"
 #define LISTCONTENT "listContent"
 #define LISTSTAT "stat"
 #define STOREBINARY "storeBinary"
@@ -26,6 +27,7 @@
 #define TOUCH "createEmptyFile"
 #define READFILE "readFile"
 #define DELETEFILE "deleteFile"
+#define WRITEADF "writeAdf"
 
 #define ROOTDIRELEMENTS_NUMBER 3
 static const char *ROOTDIRELEMENTS[ROOTDIRELEMENTS_NUMBER]={"volumes","adf","hdf"};

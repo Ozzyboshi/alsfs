@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 
+void create_file_element(struct stat*,int,int,int,int,int,int);
 void create_dir_element(struct stat*,int,int,int,int,int,int);
 void create_stat_element(struct stat*,int,int,int,int,int,int,int);
 int is_root_element(const char*);

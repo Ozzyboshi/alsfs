@@ -34,6 +34,7 @@ int Base64Decode(char*, unsigned char**, size_t*);
 long curl_post_create_empty_file(const char*);
 long curl_post_create_empty_drawer(const char*);
 long curl_put_rename_file_drawer(const char*,const char*);
+long curl_post_create_adf(const int,const char*);
 long curl_post_create_mknode(const char*,char*,size_t,off_t);
 long curl_get_read_file(const char*,size_t,off_t,char**);
 int curl_stat_amiga_file(const char* path,struct stat *statbuf);

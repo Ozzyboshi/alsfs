@@ -1,6 +1,11 @@
 #include "virtual_stat.h"
 #include "rootelements.h"
 
+
+void create_file_element(struct stat* statbuf,int year,int mon,int day,int hour,int min,int sec)
+{
+    return create_stat_element(statbuf,year,mon,day,hour,min,sec,0);
+}
 void create_dir_element(struct stat* statbuf,int year,int mon,int day,int hour,int min,int sec)
 {
     return create_stat_element(statbuf,year,mon,day,hour,min,sec,1);

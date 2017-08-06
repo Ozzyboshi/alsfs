@@ -60,9 +60,11 @@ long amiga_js_call(const char* endpoint,json_object * jobj,const char* http_meth
 
 	if (asprintf(&url,"http://%s/%s",ALSFS_DATA->alsfs_webserver,endpoint)==-1)
 			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+	log_msg("%s",url);
+	if (jobj) log_msg("JSON %s",json_object_get_string(jobj));
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	free(url);
-	curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_object_to_json_string(jobj));
+	if (jobj!=NULL) curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_object_to_json_string(jobj));
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, http_method);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT,0); 
 	
@@ -220,6 +222,22 @@ long curl_post_create_empty_drawer(const char* amigadestination)
 	json_object_object_add(jobj,"amigadrawername", jstring);
 	
 	return amiga_js_call(MKDIR,jobj,"POST",NULL);
+}
+
+long curl_post_create_adf(const int trackDevice,const char* adfFilename)
+{
+	// curl -i  -H "Content-Type: application/json" -X POST -d '{"trackDevice":"2","adfFilename":"/home/ozzy/lotus2.adf","start":"0","end":"79"}' http://192.168.137.3:8081/writeAdf
+	json_object * jobj = json_object_new_object();
+	json_object *jstring = json_object_new_string(adfFilename);
+	json_object *jstring2 = json_object_new_int(trackDevice);
+	json_object *jstring3 = json_object_new_int(0);
+	json_object *jstring4 = json_object_new_int(79);
+	json_object_object_add(jobj,"trackDevice", jstring2);
+	json_object_object_add(jobj,"adfFilename", jstring);
+	json_object_object_add(jobj,"start", jstring3);
+	json_object_object_add(jobj,"end", jstring4);
+	
+	return amiga_js_call(WRITEADF,jobj,"POST",NULL);
 }
 
 long curl_put_rename_file_drawer(const char* oldname,const char* newname)

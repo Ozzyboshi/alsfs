@@ -38,7 +38,7 @@
 #include "alsfs_curl.h"
 
 
-
+FILE* GLOBALFD;
 
 
 
@@ -138,7 +138,7 @@ int bb_getattr(const char *path, struct stat *statbuf)
 
     if (!strcmp(path,"/"))
     {
-  	log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",path, statbuf);
+  		log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",path, statbuf);
        	bb_fullpath(fpath, path);
        	log_msg("vafo a cercare %s",fpath);
        	retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
@@ -150,7 +150,7 @@ int bb_getattr(const char *path, struct stat *statbuf)
     {
         log_msg("\nbb_getattr(path=\"%s\", skip because first level invalid dir)\n",path);
         return -1;
-  	log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",path, statbuf);
+  		log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",path, statbuf);
        	bb_fullpath(fpath, path);
        	log_msg("vafo a cercare %s",fpath);
        	retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
@@ -173,42 +173,14 @@ int bb_getattr(const char *path, struct stat *statbuf)
     {
         create_dir_element(statbuf,2017,7,4,10,20,30);
         return 0;
-
-		struct tm info;
- 		time_t lol;
-		
-		info.tm_year = 2001 - 1900;
-	    info.tm_mon = 7 - 1;
-	    info.tm_mday = 4;
-	    info.tm_hour = 10;
-	    info.tm_min = 20;
-	    info.tm_sec = 30;
-	    info.tm_isdst = -1;
-		lol = mktime(&info);
-
-
-        bb_fullpath(fpath, "1");
-        //retstat = log_syscall("lstat", lstat("/root/fuse-tutorial-2016-03-25/src/rootdir/1", statbuf), 0);
-		memset (statbuf,0,sizeof(struct stat));
-		statbuf->st_size=111;
-		statbuf->st_dev = 0;
-		statbuf->st_ino = 0;
-		statbuf->st_mode = 0040777;
-		statbuf->st_nlink = 0;
-		statbuf->st_uid = 0;
-		statbuf->st_gid = 0;
-		statbuf->st_rdev = 0;
-		//st_size = 0
-		statbuf->st_blksize = ALSFS_BLK_SIZE;
-		statbuf->st_blocks = 0;
-		statbuf->st_atime = lol;
-		statbuf->st_mtime = lol;
-		statbuf->st_ctime = lol;
-
-		return 0;
     }
     else
 	{
+		if (countPathDepth(path)>2 && !strncmp(path,"/adf/DF",7))
+		{
+			create_file_element(statbuf,2017,7,4,10,20,30);
+			return 0;
+		}
 			for (found=0,i=0;found==0&&i<ROOTDIRELEMENTS_NUMBER;i++)
 			{
 				log_msg("confronto \"%s\" con %s)\n",ROOTDIRELEMENTS[i],&path[1]);
@@ -299,16 +271,17 @@ int bb_getattr(const char *path, struct stat *statbuf)
 				const char *st_size = json_object_get_string(returnObj);
 				
 				json_object_object_get_ex(jobj, "directory",&returnObj);
-                                int directory = atoi(json_object_get_string(returnObj));
+				int directory = atoi(json_object_get_string(returnObj));
                                 
-                                json_object_object_get_ex(jobj, "days",&returnObj);
-                                int days = atoi(json_object_get_string(returnObj));
+				json_object_object_get_ex(jobj, "days",&returnObj);
+				int days = atoi(json_object_get_string(returnObj));
                                 
-                                json_object_object_get_ex(jobj, "minutes",&returnObj);
-                                int minutes = atoi(json_object_get_string(returnObj));
+				json_object_object_get_ex(jobj, "minutes",&returnObj);
+				int minutes = atoi(json_object_get_string(returnObj));
                                 
-                                json_object_object_get_ex(jobj, "seconds",&returnObj);
-                                int seconds = atoi(json_object_get_string(returnObj));
+				json_object_object_get_ex(jobj, "seconds",&returnObj);
+				int seconds = atoi(json_object_get_string(returnObj));
+
 				//const char *st_size = json_object_get_string(json_object_object_get(jobj, "st_size"));
 				log_msg("stsize : ##%s##",st_size);
 
@@ -394,10 +367,18 @@ int bb_mknod(const char *path, mode_t mode, dev_t dev)
     int retstat;
     char fpath[PATH_MAX];
     char* out;
-    
+    char* bname;
+
     log_msg("\nbb_mknod(path=\"%s\", mode=0%3o, dev=%lld)\n",
 	  path, mode, dev);
-    bb_fullpath(fpath, path);
+    //bb_fullpath(fpath, path);
+    if (!strncmp(path,"/adf/DF",7))
+    {
+    	return 0;
+    	/*mkdir("/tmp/alsfs");
+    	asprintf(out,"%s","/tmp/alsfs/")
+    	retstat = log_syscall("mkfifo", mkfifo(out, mode), 0);*/
+	}
     
     // On Linux this could just be 'mknod(path, mode, dev)' but this
     // tries to be be more portable by honoring the quote in the Linux
@@ -756,6 +737,84 @@ int bb_write(const char *path, const char *buf, size_t size, off_t offset,
 	char* rawdata;
     
     log_msg("\nbb_write(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",path, buf, size, offset, fi);
+
+    if (!strcmp(path,"/adf")) return 0;
+    if (!strncmp(path,"/adf/DF",7))
+    {
+    	// First call, time to create a temporary file
+    	if (offset==0)
+    	{
+    		int fd;
+			//char name[] = "/tmp/alsfsXXXXXX";
+			//fd = mkstemp(name);
+			//close(fd);
+
+			char* name = tempnam("/tmp/", "alsfs");
+			GLOBALFD = fopen(name,"wb");
+			fwrite(buf,size,1,GLOBALFD);
+			/*fd = open("/tmp/lol2", O_CREAT | O_EXCL | O_WRONLY | O_SYNC, 0644);*/
+
+			//if (fd==-1) log_msg("Errore creazione file");
+			//fd = open("/tmp/lol2", fi->flags);
+		    /*if (fd < 0)
+		    {
+				log_msg("Opening file : Failed\n");
+        		log_msg ("Error no is : %d\n", errno);
+        		log_msg("Error description is : %s\n",strerror(errno));
+			}
+			
+		    fi->fh = fd;*/
+
+			/*log_msg("Created file %s",name);
+			if (pwrite(fi->fh, buf, size, offset)==-1)
+				log_msg("Pwrite failed at line %d",__LINE__);
+			fsync(fi->fh);*/
+    	}
+    	// Last call, time to post data to the amiga
+    	else if (offset+size==901120)
+    	{
+			/*if (pwrite(fi->fh, buf, size, offset)==-1)
+				log_msg("Pwrite failed at line %d",__LINE__);
+			fsync(fi->fh);
+			if (close(fi->fh))
+				log_msg("Failed to close file");
+			log_msg("File adf closed");*/
+			fseek(GLOBALFD,offset,SEEK_SET);
+			fwrite(buf,size,1,GLOBALFD);
+
+			int MAXSIZE = 0xFFF;
+			int fno = fileno(GLOBALFD);
+			char proclnk[0xFFF];
+			char filename[0xFFF];
+        	sprintf(proclnk, "/proc/self/fd/%d", fno);
+        	ssize_t r = readlink(proclnk, filename, MAXSIZE);
+        	filename[r] = '\0';
+        	log_msg("Sending %s via web",filename);
+			fclose(GLOBALFD);
+			char* first_occ = index(path,'/')+1;
+			char* second_occ = index(first_occ,'/')+1;
+			char trackdevicenumber[2];
+			trackdevicenumber[0] = second_occ[2];
+			trackdevicenumber[1]=0;
+			//log_msg("trackdevice %d",atoi(trackdevicenumber));
+			curl_post_create_adf(atoi(trackdevicenumber),filename);
+			unlink(filename);
+
+    	}
+    	// Just a regular write that is neither the first nor the last
+    	else
+    	{
+    		/*if (pwrite(fi->fh, buf, size, offset)==-1)
+				log_msg("Pwrite failed at line %d",__LINE__);*/
+    		//log_msg("Pwrite ha scritto %d",pwrite(fi->fh, buf, size, offset));
+    		//fsync(fi->fh);
+    		//log_syscall("pwrite", pwrite(fi->fh, buf, size, offset), 0);
+    		fseek(GLOBALFD,offset,SEEK_SET);
+    		fwrite(buf,size,1,GLOBALFD);
+    		
+    	}
+    	return size;
+    }
 	
 	out=malloc(strlen(path)+1);
 	urlToAmiga(path,out);
@@ -1070,7 +1129,31 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 		strcpy(url,URL_LISTVOLUMES);*/
 		if (asprintf(&url,"http://%s/%s",ALSFS_DATA->alsfs_webserver,LISTVOLUMES)==-1)
 			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
-	}		
+	}
+	else if (!strcmp(path,"/adf"))
+	{
+/*		printf("%s\n",BB_DATA->alsfs_webserver);
+		url=malloc(strlen(URL_LISTVOLUMES)+1);
+		strcpy(url,URL_LISTVOLUMES);*/
+		if (asprintf(&url,"http://%s/%s",ALSFS_DATA->alsfs_webserver,LISTFLOPPIES)==-1)
+			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+		/*long amiga_js_call(LISTFLOPPIES,NULL,"GET",NULL);*/
+
+	}
+	else if (!strncmp(path,"/adf",4))
+	{
+		if (filler(buf, ".", NULL, 0) != 0) 
+		{
+		    log_msg("    ERROR bb_readdir filler:  buffer full");
+		    return -ENOMEM;
+		}
+		if (filler(buf, "..", NULL, 0) != 0) 
+		{
+		    log_msg("    ERROR bb_readdir filler:  buffer full");
+		    return -ENOMEM;
+		}
+		return 0;
+	}
 	else
 	{
 		/*url=malloc(strlen(URL_LISTCONTENT)+strlen(path)+1);
@@ -1090,7 +1173,7 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 	
   	if(curl && strlen(url)) 
 	{
-		
+		log_msg("%s",url);
 		curl_easy_setopt(curl, CURLOPT_URL,url);
 		free(url);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
@@ -1311,6 +1394,33 @@ int bb_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
     
     log_msg("\nbb_ftruncate(path=\"%s\", offset=%lld, fi=0x%08x)\n",
 	    path, offset, fi);
+
+    if (!strncmp(path,"/adf/DF",7))
+    {
+    	int fno = fileno(GLOBALFD);
+    	if (ftruncate(fno, offset))
+    	{
+    		log_msg("Ftruncate returned an error");
+    		return -1;
+    	}
+    	int MAXSIZE = 0xFFF;
+		char proclnk[0xFFF];
+		char filename[0xFFF];
+        sprintf(proclnk, "/proc/self/fd/%d", fno);
+        ssize_t r = readlink(proclnk, filename, MAXSIZE);
+        filename[r] = '\0';
+        log_msg("Sending %s via web",filename);
+		fclose(GLOBALFD);
+		char* first_occ = index(path,'/')+1;
+		char* second_occ = index(first_occ,'/')+1;
+		char trackdevicenumber[2];
+		trackdevicenumber[0] = second_occ[2];
+		trackdevicenumber[1]=0;
+		curl_post_create_adf(atoi(trackdevicenumber),filename);
+		unlink(filename);
+    }
+
+    return 0;
     log_fi(fi);
     
     retstat = ftruncate(fi->fh, offset);
@@ -1338,6 +1448,12 @@ int bb_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *f
     
     log_msg("\nbb_fgetattr(path=\"%s\", statbuf=0x%08x, fi=0x%08x)\n",
 	    path, statbuf, fi);
+
+    if (countPathDepth(path)>2 && !strncmp(path,"/adf/DF",7))
+	{
+		create_file_element(statbuf,2017,7,4,10,20,30);
+		return 0;
+	}
 	    
 	return curl_stat_amiga_file(path,statbuf);
 
