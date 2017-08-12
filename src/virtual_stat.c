@@ -1,16 +1,16 @@
 #include "virtual_stat.h"
 #include "rootelements.h"
+#include "params.h"
 
-
-void create_file_element(struct stat* statbuf,int year,int mon,int day,int hour,int min,int sec)
+void create_file_element(struct stat* statbuf,int year,int mon,int day,int hour,int min,int sec,int size)
 {
-    return create_stat_element(statbuf,year,mon,day,hour,min,sec,0);
+    return create_stat_element(statbuf,year,mon,day,hour,min,sec,0,size);
 }
 void create_dir_element(struct stat* statbuf,int year,int mon,int day,int hour,int min,int sec)
 {
-    return create_stat_element(statbuf,year,mon,day,hour,min,sec,1);
+    return create_stat_element(statbuf,year,mon,day,hour,min,sec,1,4096);
 }
-void create_stat_element(struct stat* statbuf,int year,int mon,int day,int hour,int min,int sec,int dir)
+void create_stat_element(struct stat* statbuf,int year,int mon,int day,int hour,int min,int sec,int dir,int size)
 {
     struct tm info;
     time_t timeinfo;
@@ -25,7 +25,7 @@ void create_stat_element(struct stat* statbuf,int year,int mon,int day,int hour,
     timeinfo = mktime(&info);
 
     memset (statbuf,0,sizeof(struct stat));
-    statbuf->st_size=4096;
+    statbuf->st_size=size;
     statbuf->st_dev = 0;
     statbuf->st_ino = 0;
     if (dir)
@@ -37,7 +37,7 @@ void create_stat_element(struct stat* statbuf,int year,int mon,int day,int hour,
     statbuf->st_gid = 0;
     statbuf->st_rdev = 0;
     
-    statbuf->st_blksize = 4096;
+    statbuf->st_blksize = ALSFS_BLK_SIZE;
     statbuf->st_blocks = 0;
     statbuf->st_atime = timeinfo;
     statbuf->st_mtime = timeinfo;

@@ -37,7 +37,9 @@ long curl_put_rename_file_drawer(const char*,const char*);
 long curl_post_create_adf(const int,const char*);
 long curl_post_create_mknode(const char*,char*,size_t,off_t);
 long curl_get_read_file(const char*,size_t,off_t,char**);
+long curl_get_read_adf(int ,size_t ,off_t ,char**);
 int curl_stat_amiga_file(const char* path,struct stat *statbuf);
+int curl_get_test_floppy_disk(int,char**);
 char* trans_urlToAmiga(const char*,char*);
 int trans_countPathDepth(const char*);
 size_t calcDecodeLength(const char*);
@@ -47,3 +49,7 @@ void base64_cleanup();
 
 
 char *unbase64(unsigned char *, int,int*);
+
+int Base64Decode(char* , unsigned char** , size_t* );
+size_t calcDecodeLength(const char* );
+

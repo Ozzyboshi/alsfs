@@ -166,8 +166,7 @@ int bb_getattr(const char *path, struct stat *statbuf)
     log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",
 	  path, statbuf);
     bb_fullpath(fpath, path);
-    log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",
-      path, statbuf);
+
     //if (found)
     if (is_root_element(path))
     {
@@ -178,146 +177,107 @@ int bb_getattr(const char *path, struct stat *statbuf)
 	{
 		if (countPathDepth(path)>2 && !strncmp(path,"/adf/DF",7))
 		{
-			create_file_element(statbuf,2017,7,4,10,20,30);
+			create_file_element(statbuf,2017,7,4,10,20,30,901120);
+			log_msg("Created virtual file of 901120 bytes\n");
 			return 0;
 		}
-			for (found=0,i=0;found==0&&i<ROOTDIRELEMENTS_NUMBER;i++)
+		for (found=0,i=0;found==0&&i<ROOTDIRELEMENTS_NUMBER;i++)
+		{
+			log_msg("confronto \"%s\" con %s)\n",ROOTDIRELEMENTS[i],&path[1]);
+			if (strlen(path)>0 && path[0]=='/' && !strncmp(ROOTDIRELEMENTS[i],&path[1],strlen(ROOTDIRELEMENTS[i])))
 			{
-				log_msg("confronto \"%s\" con %s)\n",ROOTDIRELEMENTS[i],&path[1]);
-				if (strlen(path)>0 && path[0]=='/' && !strncmp(ROOTDIRELEMENTS[i],&path[1],strlen(ROOTDIRELEMENTS[i])))
-				{
-					log_msg("conto gli slashed per path \"%s\" sono %d)\n",path,countPathDepth(path));
-					if (countPathDepth(path)==2)
-						found=1;
-				}
-			}			
-			if (found)
-			{
-				struct tm info;
-		 		time_t lol;
-		
-				info.tm_year = 2001 - 1900;
-				info.tm_mon = 7 - 1;
-				info.tm_mday = 4;
-				info.tm_hour = 10;
-				info.tm_min = 20;
-				info.tm_sec = 30;
-				info.tm_isdst = -1;
-				lol = mktime(&info);
-
-
-				bb_fullpath(fpath, "1");
-				//retstat = log_syscall("lstat", lstat("/root/fuse-tutorial-2016-03-25/src/rootdir/1", statbuf), 0);
-				memset (statbuf,0,sizeof(struct stat));
-				statbuf->st_size=111;
-				statbuf->st_dev = 0;
-				statbuf->st_ino = 0;
-				statbuf->st_mode = 0040777;
-				statbuf->st_nlink = 0;
-				statbuf->st_uid = 0;
-				statbuf->st_gid = 0;
-				statbuf->st_rdev = 0;
-				//st_size = 0
-				statbuf->st_blksize = ALSFS_BLK_SIZE;
-				statbuf->st_blocks = 0;
-				statbuf->st_atime = lol;
-				statbuf->st_mtime = lol;
-				statbuf->st_ctime = lol;
-
-				return 0;
+				log_msg("conto gli slashed per path \"%s\" sono %d)\n",path,countPathDepth(path));
+				if (countPathDepth(path)==2)
+					found=1;
 			}
-			else
+		}	
+
+		// If the requested path matches one element in ROOTDIRELEMENTS array		
+		if (found)
+		{
+			create_dir_element(statbuf,2017,7,4,10,20,30);
+			return 0;
+		}
+		else
+		{
+			/*url=malloc(strlen(URL_LISTSTAT)+strlen(path)+1);
+			strcpy(url,URL_LISTSTAT);*/
+			out=malloc(strlen(path)+1);
+			urlToAmiga(path,out);
+			/*strcat(url,out);*/
+			char *urlEncoded = curl_easy_escape(curl, out, 0);
+			if (urlEncoded) log_msg("urlencoded : ##%s##",urlEncoded);
+			if (asprintf(&url,"http://%s/%s?path=%s",ALSFS_DATA->alsfs_webserver,LISTSTAT,urlEncoded)==-1)
+				fprintf(stderr, "asprintf() failed");
+			curl_free(urlEncoded);
+			free(out);
+			log_msg("url : ##%s##",url);
+
+			curl = curl_easy_init();
+			if (curl)
 			{
-
-				/*url=malloc(strlen(URL_LISTSTAT)+strlen(path)+1);
-				strcpy(url,URL_LISTSTAT);*/
-				out=malloc(strlen(path)+1);
-				urlToAmiga(path,out);
-				/*strcat(url,out);*/
-				char *urlEncoded = curl_easy_escape(curl, out, 0);
-				if (urlEncoded) log_msg("urlencoded : ##%s##",urlEncoded);
-				if (asprintf(&url,"http://%s/%s?path=%s",ALSFS_DATA->alsfs_webserver,LISTSTAT,urlEncoded)==-1)
-					fprintf(stderr, "asprintf() failed");
-				curl_free(urlEncoded);
-				free(out);
-				log_msg("url : ##%s##",url);
-
-				curl = curl_easy_init();
-				if (curl)
-				{
-					curl_easy_setopt(curl, CURLOPT_URL,url);
-					free(url);
-					curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-					   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
-					res = curl_easy_perform(curl);
-					if(res != CURLE_OK)
-					 		log_msg("curl_easy_perform() failed: %s %d\n",curl_easy_strerror(res),res);
+				curl_easy_setopt(curl, CURLOPT_URL,url);
+				free(url);
+				curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+				   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
+				res = curl_easy_perform(curl);
+				if(res != CURLE_OK)
+				 		log_msg("curl_easy_perform() failed: %s %d\n",curl_easy_strerror(res),res);
 					
-                                        curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
+					curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
 					curl_easy_cleanup(curl);
-				}
-				if (http_code == 404)
-				{
-				    log_msg("### File not found ###\n");
-				    memset (statbuf,0,sizeof(struct stat));
-				    return -2;
-				}
-
-				log_msg("data : ##%s##",data.data);
-
-				json_object * jobj = json_tokener_parse(data.data);
-				json_object* returnObj;
-				json_object_object_get_ex(jobj, "st_size",&returnObj);
-				const char *st_size = json_object_get_string(returnObj);
-				
-				json_object_object_get_ex(jobj, "directory",&returnObj);
-				int directory = atoi(json_object_get_string(returnObj));
-                                
-				json_object_object_get_ex(jobj, "days",&returnObj);
-				int days = atoi(json_object_get_string(returnObj));
-                                
-				json_object_object_get_ex(jobj, "minutes",&returnObj);
-				int minutes = atoi(json_object_get_string(returnObj));
-                                
-				json_object_object_get_ex(jobj, "seconds",&returnObj);
-				int seconds = atoi(json_object_get_string(returnObj));
-
-				//const char *st_size = json_object_get_string(json_object_object_get(jobj, "st_size"));
-				log_msg("stsize : ##%s##",st_size);
-
-				/*struct tm info;
-		 		time_t lol;
-		
-				info.tm_year = 2001 - 1900;
-				info.tm_mon = 7 - 1;
-				info.tm_mday = 4;
-				info.tm_hour = 10;
-				info.tm_min = 20;
-				info.tm_sec = 30;
-				info.tm_isdst = -1;
-				lol = mktime(&info);*/
-                                time_t amigatime = amigadate_to_pc(days,minutes,seconds);
-
-				bb_fullpath(fpath, "1");
-				//retstat = log_syscall("lstat", lstat("/root/fuse-tutorial-2016-03-25/src/rootdir/1", statbuf), 0);
-				memset (statbuf,0,sizeof(struct stat));
-				statbuf->st_size=atol(st_size);
-				statbuf->st_dev = 0;
-				statbuf->st_ino = 0;
-				if (directory) statbuf->st_mode = 0040777;
-				else statbuf->st_mode = 0100777;
-				statbuf->st_nlink = 0;
-				statbuf->st_uid = 0;
-				statbuf->st_gid = 0;
-				statbuf->st_rdev = 0;
-				//st_size = 0
-				statbuf->st_blksize = ALSFS_BLK_SIZE;
-				statbuf->st_blocks = 0;
-				statbuf->st_atime = amigatime;
-				statbuf->st_mtime = amigatime;
-				statbuf->st_ctime = amigatime;
-				return 0;
 			}
+			if (http_code == 404)
+			{
+				log_msg("### File not found ###\n");
+				memset (statbuf,0,sizeof(struct stat));
+				return -2;
+			}
+
+			log_msg("data : ##%s##",data.data);
+
+			json_object * jobj = json_tokener_parse(data.data);
+			json_object* returnObj;
+			json_object_object_get_ex(jobj, "st_size",&returnObj);
+			const char *st_size = json_object_get_string(returnObj);
+				
+			json_object_object_get_ex(jobj, "directory",&returnObj);
+			int directory = atoi(json_object_get_string(returnObj));
+                                
+			json_object_object_get_ex(jobj, "days",&returnObj);
+			int days = atoi(json_object_get_string(returnObj));
+                                
+			json_object_object_get_ex(jobj, "minutes",&returnObj);
+			int minutes = atoi(json_object_get_string(returnObj));
+                                
+			json_object_object_get_ex(jobj, "seconds",&returnObj);
+			int seconds = atoi(json_object_get_string(returnObj));
+
+			//const char *st_size = json_object_get_string(json_object_object_get(jobj, "st_size"));
+			log_msg("stsize : ##%s##",st_size);
+
+			time_t amigatime = amigadate_to_pc(days,minutes,seconds);
+
+			bb_fullpath(fpath, "1");
+				//retstat = log_syscall("lstat", lstat("/root/fuse-tutorial-2016-03-25/src/rootdir/1", statbuf), 0);
+			memset (statbuf,0,sizeof(struct stat));
+			statbuf->st_size=atol(st_size);
+			statbuf->st_dev = 0;
+			statbuf->st_ino = 0;
+			if (directory) statbuf->st_mode = 0040777;
+			else statbuf->st_mode = 0100777;
+			statbuf->st_nlink = 0;
+			statbuf->st_uid = 0;
+			statbuf->st_gid = 0;
+			statbuf->st_rdev = 0;
+			//st_size = 0
+			statbuf->st_blksize = ALSFS_BLK_SIZE;
+			statbuf->st_blocks = 0;
+			statbuf->st_atime = amigatime;
+			statbuf->st_mtime = amigatime;
+			statbuf->st_ctime = amigatime;
+			return 0;
+		}
 	}
     
     
@@ -651,6 +611,61 @@ int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
     
     log_msg("\nbb_read(path=\"%s\", buf=0x%08x, size=%d, offset=%lld, fi=0x%08x)\n",
 	    path, buf, size, offset, fi);
+
+    if (!strncmp(path,"/adf/DF",7))
+    {
+    	if (asprintf(&out,"%c",path[strlen(path)-1])==-1)
+    		log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+    	long http_response = curl_get_read_adf(atoi(out),size,offset,&httpbody);
+    	free(out);
+    	if (http_response == 200)
+    	{
+    		if (httpbody==NULL)
+			{
+				log_msg("httpbody is NULL ");
+				return 0;
+			}
+			char* base64Message=strtok(httpbody,"\n");
+			if (base64Message==NULL)
+			{
+				log_msg("Base64message is NULL (no LF found on %s)",httpbody);
+				return 0;
+			}
+			char* strip;
+			if (asprintf(&strip,"%s",base64Message)==-1)
+				log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+			size_t rawdataLength=0;
+			log_msg("%s",strip);
+			log_msg("Strip lungo %d",strlen(strip));
+			//char *output = unbase64(strip, strlen(strip),&rawdataLength);
+			unsigned char* output;
+			Base64Decode(strip, &output, &rawdataLength);
+
+			
+			log_msg("Output binario: %d %d %d %d %d - length %d\n",(unsigned char) output[0],(unsigned char)output[1],(unsigned char)output[2],(unsigned char)output[3],(unsigned char)output[4],rawdataLength);
+			memcpy(buf,output,rawdataLength);
+			contBytes+=rawdataLength;
+			free(output);
+			free(strip);
+			while (base64Message=strtok(NULL,"\n"))
+			{
+				//log_msg("Lunghezza messaggio successivo%d\n",strlen(base64Message));
+				//log_msg(" messaggio successivo ##%s##\n",base64Message);
+				if (asprintf(&strip,"%s",base64Message)==-1)
+					log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+					
+				rawdataLength=0;
+				//output = unbase64(strip, strlen(strip),&rawdataLength);
+				Base64Decode(strip, &output, &rawdataLength);
+				memcpy(buf+contBytes,output,rawdataLength);
+				contBytes+=rawdataLength;
+				free(output);
+				//log_msg("##%s##",base64Message);
+			}
+			return contBytes;
+    	}
+    	return size;
+    }
     
     out=malloc(strlen(path)+1);
 	urlToAmiga(path,out);
@@ -676,7 +691,7 @@ int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
 			return 0;
 		}
 		unsigned char* base64DecodeOutput;
-		size_t test;
+		//size_t test;
 		char* strip;
 		if (asprintf(&strip,"%s\n",base64Message)==-1)
 			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
@@ -690,7 +705,6 @@ int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
 		memcpy(buf,output,rawdataLength);
 		contBytes+=rawdataLength;
 		free(output);
-  
 		free(strip);
 		
 		while (base64Message=strtok(NULL,"\n"))
@@ -708,6 +722,7 @@ int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
 		//memset(buf,EOF,size);
 		//memcpy(buf,httpbody,strlen(httpbody));
 		//memcpy(buf,"lollamelo",9);
+		log_msg("Contbytes %d",contBytes);
 		return contBytes;
 	}
 	return EOF;
@@ -1152,6 +1167,31 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 		    log_msg("    ERROR bb_readdir filler:  buffer full");
 		    return -ENOMEM;
 		}
+		char dfNumber[2];
+		char* buf2=malloc(2);
+		sprintf(dfNumber,"%c",path[strlen(path)-1]);
+		log_msg("DFNUMBER is %d",atoi(dfNumber));
+		int status = curl_get_test_floppy_disk(atoi(dfNumber),&buf2);
+		log_msg("Floppy drive test returned %c with status %d",buf2[0],status);
+
+		// 7 means a disk is present so i return an DFX.adf file for downloading the image
+		if (buf2[0]=='7')
+		{
+			char* fileName;
+			if (asprintf(&fileName,"DF%c.adf",path[strlen(path)-1])==-1)
+				log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+
+			if (filler(buf,fileName, NULL, 0) != 0) 
+			{
+		    	log_msg("    ERROR bb_readdir filler:  buffer full");
+		    	free(buf2);
+		    	free(fileName);
+		    	return -ENOMEM;
+			}
+			free(fileName);
+		}
+
+		free(buf2);
 		return 0;
 	}
 	else
@@ -1449,9 +1489,11 @@ int bb_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *f
     log_msg("\nbb_fgetattr(path=\"%s\", statbuf=0x%08x, fi=0x%08x)\n",
 	    path, statbuf, fi);
 
-    if (countPathDepth(path)>2 && !strncmp(path,"/adf/DF",7))
+    
+	if (countPathDepth(path)>2 && !strncmp(path,"/adf/DF",7))
 	{
-		create_file_element(statbuf,2017,7,4,10,20,30);
+		create_file_element(statbuf,2017,7,4,10,20,30,901120);
+		log_msg("Created virtual file of 901120 bytes\n");
 		return 0;
 	}
 	    

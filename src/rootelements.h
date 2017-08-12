@@ -28,6 +28,8 @@
 #define READFILE "readFile"
 #define DELETEFILE "deleteFile"
 #define WRITEADF "writeAdf"
+#define READADF "readAdf"
+#define TESTFLOPPYDISK "testFloppyDisk"
 
 #define ROOTDIRELEMENTS_NUMBER 3
 static const char *ROOTDIRELEMENTS[ROOTDIRELEMENTS_NUMBER]={"volumes","adf","hdf"};

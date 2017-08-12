@@ -32,17 +32,6 @@
 #include <assert.h>
 #include <unistd.h>
 
-static char *decoding_table = NULL;
-static char encoding_table[] = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
-                                'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
-                                'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
-                                'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
-                                'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
-                                'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
-                                'w', 'x', 'y', 'z', '0', '1', '2', '3',
-                                '4', '5', '6', '7', '8', '9', '+', '/'};
-
-
 int CURL_READY=1;
 
 long amiga_js_call(const char* endpoint,json_object * jobj,const char* http_method,char** http_body)
@@ -60,7 +49,7 @@ long amiga_js_call(const char* endpoint,json_object * jobj,const char* http_meth
 
 	if (asprintf(&url,"http://%s/%s",ALSFS_DATA->alsfs_webserver,endpoint)==-1)
 			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
-	log_msg("%s",url);
+	log_msg("%s\n",url);
 	if (jobj) log_msg("JSON %s",json_object_get_string(jobj));
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	free(url);
@@ -70,7 +59,6 @@ long amiga_js_call(const char* endpoint,json_object * jobj,const char* http_meth
 	
 	if (http_body)
 	{
-		
 		data.size = 0;
 		data.data = malloc(4096);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_data);
@@ -97,7 +85,7 @@ long amiga_js_call(const char* endpoint,json_object * jobj,const char* http_meth
 }
 
 size_t curl_write_data(void *ptr, size_t size, size_t nmemb, struct curl_url_data *data) {
-	log_msg("Curl wwrite data invoked at %lu\n",(unsigned long)time(NULL));
+	log_msg("Curl write data invoked at - %lu -\n",(unsigned long)time(NULL));
     size_t index = data->size;
     size_t n = (size * nmemb);
     char* tmp;
@@ -111,7 +99,7 @@ size_t curl_write_data(void *ptr, size_t size, size_t nmemb, struct curl_url_dat
         if(data->data) {
             free(data->data);
         }
-        fprintf(stderr, "Failed to allocate memory.\n");
+        log_msg("Failed to allocate memory.\n");
         return 0;
     }
 
@@ -134,57 +122,6 @@ static size_t read_callback(void *ptr, size_t size, size_t nmemb, void *userp)
   }
 
   return 0;                          /* no more data left to deliver */ 
-}
-
-int Base64Encode(const unsigned char* buffer, size_t length, char** b64text) { //Encodes a binary safe base 64 string
-	BIO *bio, *b64;
-	BUF_MEM *bufferPtr;
-
-	b64 = BIO_new(BIO_f_base64());
-	bio = BIO_new(BIO_s_mem());
-	bio = BIO_push(b64, bio);
-
-	BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); //Ignore newlines - write everything in one line
-	BIO_write(bio, buffer, length);
-	BIO_flush(bio);
-	BIO_get_mem_ptr(bio, &bufferPtr);
-	BIO_set_close(bio, BIO_NOCLOSE);
-	BIO_free_all(bio);
-
-	*b64text=(*bufferPtr).data;
-
-	return (0); //success
-}
-
-int Base64Decode(char* b64message, unsigned char** buffer, size_t* length) { //Decodes a base64 encoded string
-	BIO *bio, *b64;
-
-	int decodeLen = calcDecodeLength(b64message);
-	*buffer = (unsigned char*)malloc(decodeLen + 1);
-	(*buffer)[decodeLen] = '\0';
-
-	bio = BIO_new_mem_buf(b64message, -1);
-	b64 = BIO_new(BIO_f_base64());
-	bio = BIO_push(b64, bio);
-
-	BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); //Do not use newlines to flush buffer
-	*length = BIO_read(bio, *buffer, strlen(b64message));
-	assert(*length == decodeLen); //length should equal decodeLen, else something went horribly wrong
-	BIO_free_all(bio);
-
-	return (0); //success
-}
-
-size_t calcDecodeLength(const char* b64input) { //Calculates the length of a decoded string
-	size_t len = strlen(b64input),
-		padding = 0;
-
-	if (b64input[len-1] == '=' && b64input[len-2] == '=') //last two chars are =
-		padding = 2;
-	else if (b64input[len-1] == '=') //last char is =
-		padding = 1;
-
-	return (len*3)/4 - padding;
 }
 
 // Ws call to create a new node
@@ -263,10 +200,22 @@ long curl_get_read_file(const char* amigadestination,size_t size,off_t offset,ch
 	json_object_object_add(jobj,"amigafilename", jstring);
 	json_object_object_add(jobj,"size", jstring3);
 	json_object_object_add(jobj,"offset", jstring4);
-	
-	// Qui c'è da mettere su buf il body della chiamata HTTP
-	
+		
 	amiga_js_call(READFILE,jobj,"GET",buf);
+	return 200;
+}
+
+long curl_get_read_adf(int trackdevice,size_t size,off_t offset,char** buf)
+{
+	json_object * jobj = json_object_new_object();
+	json_object *jstring = json_object_new_int(trackdevice);
+	json_object *jstring3 = json_object_new_int(size);
+	json_object *jstring4 = json_object_new_int(offset);
+	json_object_object_add(jobj,"trackDevice", jstring);
+	json_object_object_add(jobj,"size", jstring3);
+	json_object_object_add(jobj,"offset", jstring4);
+		
+	amiga_js_call(READADF,jobj,"GET",buf);
 	return 200;
 }
 
@@ -276,6 +225,14 @@ long curl_delete_delete_file(const char* amigadestination)
 	json_object *jstring = json_object_new_string(amigadestination);
 	json_object_object_add(jobj,"amigafilename", jstring);
 	return amiga_js_call(DELETEFILE,jobj,"DELETE",NULL);
+}
+
+int curl_get_test_floppy_disk(int trackDevice,char** buf)
+{
+	json_object * jobj = json_object_new_object();
+	json_object *jstring = json_object_new_int(trackDevice);
+	json_object_object_add(jobj,"trackDevice", jstring);
+	return amiga_js_call(TESTFLOPPYDISK,jobj,"GET",buf);
 }
 
 int curl_stat_amiga_file(const char* path,struct stat *statbuf)
@@ -399,21 +356,6 @@ int trans_countPathDepth(const char* path)
 	return cont;
 }
 
-
-void build_decoding_table() {
-    int i;
-    decoding_table = malloc(256);
-
-    for (i = 0; i < 64; i++)
-        decoding_table[(unsigned char) encoding_table[i]] = i;
-}
-
-
-void base64_cleanup() {
-    free(decoding_table);
-}
-
-
 char *unbase64(unsigned char *input, int length,int* length_out)
 {
 	BIO *b64, *bmem;
@@ -430,4 +372,55 @@ char *unbase64(unsigned char *input, int length,int* length_out)
 	BIO_free_all(bmem);
 
 	return buffer;
+}
+
+int Base64Encode(const unsigned char* buffer, size_t length, char** b64text) { //Encodes a binary safe base 64 string
+	BIO *bio, *b64;
+	BUF_MEM *bufferPtr;
+
+	b64 = BIO_new(BIO_f_base64());
+	bio = BIO_new(BIO_s_mem());
+	bio = BIO_push(b64, bio);
+
+	BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); //Ignore newlines - write everything in one line
+	BIO_write(bio, buffer, length);
+	BIO_flush(bio);
+	BIO_get_mem_ptr(bio, &bufferPtr);
+	BIO_set_close(bio, BIO_NOCLOSE);
+	BIO_free_all(bio);
+
+	*b64text=(*bufferPtr).data;
+
+	return (0); //success
+}
+
+size_t calcDecodeLength(const char* b64input) { //Calculates the length of a decoded string
+	size_t len = strlen(b64input),
+		padding = 0;
+
+	if (b64input[len-1] == '=' && b64input[len-2] == '=') //last two chars are =
+		padding = 2;
+	else if (b64input[len-1] == '=') //last char is =
+		padding = 1;
+
+	return (len*3)/4 - padding;
+}
+
+int Base64Decode(char* b64message, unsigned char** buffer, size_t* length) { //Decodes a base64 encoded string
+	BIO *bio, *b64;
+
+	int decodeLen = calcDecodeLength(b64message);
+	*buffer = (unsigned char*)malloc(decodeLen + 1);
+	(*buffer)[decodeLen] = '\0';
+
+	bio = BIO_new_mem_buf(b64message, -1);
+	b64 = BIO_new(BIO_f_base64());
+	bio = BIO_push(b64, bio);
+
+	BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); //Do not use newlines to flush buffer
+	*length = BIO_read(bio, *buffer, strlen(b64message));
+	assert(*length == decodeLen); //length should equal decodeLen, else something went horribly wrong
+	BIO_free_all(bio);
+
+	return (0); //success
 }
