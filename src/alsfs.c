@@ -35,6 +35,8 @@
 #include <curl/curl.h>
 #include <json.h>
 #include <strings.h>
+#include <zip.h>
+
 #include "alsfs_curl.h"
 
 
@@ -565,21 +567,25 @@ int bb_open(const char *path, struct fuse_file_info *fi)
 {
     int retstat = 0;
     int fd;
-    char fpath[PATH_MAX];
+
+    if (!strncmp(path,"/adf/DF",7))
+    {
+    	char template[] = "/tmp/alsfsXXXXXX";
+    	fd = mkstemp(template);	
+    	close(fd);
+	    fd = log_syscall("open", open(template, fi->flags), 0);
+	    if (fd < 0)
+			retstat = log_error("mkstemp");
+		
+	    fi->fh = fd;
+	    return retstat;
+    }
     
     log_msg("\nbb_open(path\"%s\", fi=0x%08x)\n",
 	    path, fi);
     return 0;
-    bb_fullpath(fpath, path);
 
-    // if the open call succeeds, my retstat is the file descriptor,
-    // else it's -errno.  I'm making sure that in that case the saved
-    // file descriptor is exactly -1.
-    fd = log_syscall("open", open(fpath, fi->flags), 0);
-    if (fd < 0)
-	retstat = log_error("open");
-	
-    fi->fh = fd;
+    
 
     log_fi(fi);
     
@@ -756,79 +762,9 @@ int bb_write(const char *path, const char *buf, size_t size, off_t offset,
     if (!strcmp(path,"/adf")) return 0;
     if (!strncmp(path,"/adf/DF",7))
     {
-    	// First call, time to create a temporary file
-    	if (offset==0)
-    	{
-    		int fd;
-			//char name[] = "/tmp/alsfsXXXXXX";
-			//fd = mkstemp(name);
-			//close(fd);
-
-			char* name = tempnam("/tmp/", "alsfs");
-			GLOBALFD = fopen(name,"wb");
-			fwrite(buf,size,1,GLOBALFD);
-			/*fd = open("/tmp/lol2", O_CREAT | O_EXCL | O_WRONLY | O_SYNC, 0644);*/
-
-			//if (fd==-1) log_msg("Errore creazione file");
-			//fd = open("/tmp/lol2", fi->flags);
-		    /*if (fd < 0)
-		    {
-				log_msg("Opening file : Failed\n");
-        		log_msg ("Error no is : %d\n", errno);
-        		log_msg("Error description is : %s\n",strerror(errno));
-			}
-			
-		    fi->fh = fd;*/
-
-			/*log_msg("Created file %s",name);
-			if (pwrite(fi->fh, buf, size, offset)==-1)
-				log_msg("Pwrite failed at line %d",__LINE__);
-			fsync(fi->fh);*/
-    	}
-    	// Last call, time to post data to the amiga
-    	else if (offset+size==901120)
-    	{
-			/*if (pwrite(fi->fh, buf, size, offset)==-1)
-				log_msg("Pwrite failed at line %d",__LINE__);
-			fsync(fi->fh);
-			if (close(fi->fh))
-				log_msg("Failed to close file");
-			log_msg("File adf closed");*/
-			fseek(GLOBALFD,offset,SEEK_SET);
-			fwrite(buf,size,1,GLOBALFD);
-
-			int MAXSIZE = 0xFFF;
-			int fno = fileno(GLOBALFD);
-			char proclnk[0xFFF];
-			char filename[0xFFF];
-        	sprintf(proclnk, "/proc/self/fd/%d", fno);
-        	ssize_t r = readlink(proclnk, filename, MAXSIZE);
-        	filename[r] = '\0';
-        	log_msg("Sending %s via web",filename);
-			fclose(GLOBALFD);
-			char* first_occ = index(path,'/')+1;
-			char* second_occ = index(first_occ,'/')+1;
-			char trackdevicenumber[2];
-			trackdevicenumber[0] = second_occ[2];
-			trackdevicenumber[1]=0;
-			//log_msg("trackdevice %d",atoi(trackdevicenumber));
-			curl_post_create_adf(atoi(trackdevicenumber),filename);
-			unlink(filename);
-
-    	}
-    	// Just a regular write that is neither the first nor the last
-    	else
-    	{
-    		/*if (pwrite(fi->fh, buf, size, offset)==-1)
-				log_msg("Pwrite failed at line %d",__LINE__);*/
-    		//log_msg("Pwrite ha scritto %d",pwrite(fi->fh, buf, size, offset));
-    		//fsync(fi->fh);
-    		//log_syscall("pwrite", pwrite(fi->fh, buf, size, offset), 0);
-    		fseek(GLOBALFD,offset,SEEK_SET);
-    		fwrite(buf,size,1,GLOBALFD);
-    		
-    	}
-    	return size;
+    	if (pwrite(fi->fh, buf, size, offset)==-1)
+			log_msg("Pwrite failed at line %d",__LINE__);
+		return size;
     }
 	
 	out=malloc(strlen(path)+1);
@@ -894,7 +830,88 @@ int bb_statfs(const char *path, struct statvfs *statv)
 // this is a no-op in BBFS.  It just logs the call and returns success
 int bb_flush(const char *path, struct fuse_file_info *fi)
 {
+	char* filename = NULL;
+	char* zipfilename = NULL;
     log_msg("\nbb_flush(path=\"%s\", fi=0x%08x)\n", path, fi);
+    if (!strncmp(path,"/adf/DF",7))
+    {
+		filename = fd_to_filename(fi->fh);
+		log_msg("\nfilename %s\n",filename);
+		
+		if (is_zip(filename))
+		{
+			struct zip *za;
+			struct zip_file *zf;
+			char buf[100];
+			int err;
+			struct zip_stat sb;
+			if ((za = zip_open(filename, 0, &err)) == NULL) 
+			{
+        		zip_error_to_str(buf, sizeof(buf), err, errno);
+        		log_msg( "can't open zip archive `%s': %s/n",filename, buf);
+        		return -1;
+    		}
+    		if (zip_stat_index(za, 0, 0, &sb) == 0)
+    		{
+				int len = strlen(sb.name);
+
+    			if (sb.name[len - 1] != '/') 
+    			{
+    				zf = zip_fopen_index(za, 0, 0);
+	                if (!zf) 
+	                {
+	                    log_msg("boese, boese/n");
+	                    return -1;
+	                }
+	                asprintf(&zipfilename,"%s.adf",filename);
+	                int zfd = open(zipfilename, O_RDWR | O_TRUNC | O_CREAT , 0644);
+                	if (zfd < 0) 
+                	{
+                    	log_msg("boese, boese/n");
+                    	return -1;
+                	}
+                	int sum = 0;
+                	while (sum != sb.size) 
+                	{
+                    	len = zip_fread(zf, buf, 100);
+                    	if (len < 0) 
+                    	{
+                        	log_msg("boese, boese/n");
+                        	return -1;
+                    	}
+                    	if (write(zfd, buf, len)<=0)
+                    	{
+                    		log_msg("boese, boese/n");
+                        	return -1;
+                    	}
+                    	sum += len;
+                	}
+                	close(zfd);
+                	zip_fclose(zf);
+    			}
+    		}
+    		zip_close(za);
+    		free(filename);
+    		asprintf(&filename,"%s",zipfilename);
+    		free(zipfilename);
+		}
+		if (is_adf(filename))
+		{
+			char* first_occ = index(path,'/')+1;
+			char* second_occ = index(first_occ,'/')+1;
+			char trackdevicenumber[2];
+			trackdevicenumber[0] = second_occ[2];
+			trackdevicenumber[1]=0;
+			log_msg("\ntrackdevice %d\n",atoi(trackdevicenumber));
+			long http_result = 0;
+			curl_post_create_adf(atoi(trackdevicenumber),filename);
+			log_msg("\nHttp res : %d\n",http_result);
+			unlink(filename);
+		}
+		free(filename);
+		close(fi->fh);
+		if (filename) unlink(filename);
+	}
     // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
 	
@@ -917,15 +934,9 @@ int bb_flush(const char *path, struct fuse_file_info *fi)
  */
 int bb_release(const char *path, struct fuse_file_info *fi)
 {
-    log_msg("\nbb_release(path=\"%s\", fi=0x%08x)\n",
-	  path, fi);
+    log_msg("\nbb_release(path=\"%s\", fi=0x%08x)\n",path, fi);
+    
     return 0;
-	  
-    log_fi(fi);
-
-    // We need to close the file.  Had we allocated any resources
-    // (buffers etc) we'd need to free them here as well.
-    return log_syscall("close", close(fi->fh), 0);
 }
 
 /** Synchronize file contents

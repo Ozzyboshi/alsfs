@@ -48,15 +48,17 @@ long amiga_js_call(const char* endpoint,json_object * jobj,const char* http_meth
 	CURL *curl = curl_easy_init();
 
 	if (asprintf(&url,"http://%s/%s",ALSFS_DATA->alsfs_webserver,endpoint)==-1)
-			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
-	log_msg("%s\n",url);
+		log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+	log_msg("Preparing url %s with jobj %s\n",url,json_object_get_string(jobj));
 	if (jobj) log_msg("JSON %s",json_object_get_string(jobj));
+	log_msg("preparing to perform http req %d",http_body==NULL);
+
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	free(url);
 	if (jobj!=NULL) curl_easy_setopt(curl, CURLOPT_POSTFIELDS, json_object_to_json_string(jobj));
 	curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, http_method);
 	curl_easy_setopt(curl, CURLOPT_TIMEOUT,0); 
-	
+
 	if (http_body)
 	{
 		data.size = 0;
@@ -69,6 +71,7 @@ long amiga_js_call(const char* endpoint,json_object * jobj,const char* http_meth
 	headers = curl_slist_append(headers, "Content-Type: application/json");
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_perform(curl);
+	log_msg("performed http req");
 	curl_slist_free_all(headers); /* free the header list */
 
     curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);

@@ -18,6 +18,18 @@ PKG_CHECK_MODULES(FUSE, fuse)
 PKG_CHECK_MODULES(CURL, libcurl)
 PKG_CHECK_MODULES(JSONC, json-c)
 PKG_CHECK_MODULES(CRYPTO, libcrypto)
+PKG_CHECK_MODULES(ZIP, libzip)
+
+
+AC_CHECK_HEADERS([magic.h], [], [AC_MSG_ERROR([libmagic magic.h header file not found])])
+AC_CHECK_LIB([magic], [magic_open], [AC_SUBST([LIBMAGIC], [-lmagic])], [AC_MSG_ERROR([libmagic library or magic_open function not found])], [-lz])
+
+AC_CHECK_HEADER([magic.h], [], [
+  AC_MSG_ERROR([required header magic.h not found])
+])
+AC_SEARCH_LIBS([magic_open], [magic], [], [
+  AC_MSG_ERROR([required library libmagic not found])
+])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_UID_T

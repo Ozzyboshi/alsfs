@@ -1,6 +1,7 @@
 #include "virtual_stat.h"
 #include "rootelements.h"
 #include "params.h"
+#include <magic.h>
 
 void create_file_element(struct stat* statbuf,int year,int mon,int day,int hour,int min,int sec,int size)
 {
@@ -72,7 +73,60 @@ time_t amigadate_to_pc(const int days, const int minutes, const int ticks)
     date.tm_sec = (int)ticks/50 ;
     
     return  mktime( &date ) ;
-//    date = *gmtime( &timer ) ;
-    
-    
+}
+
+char* fd_to_filename(int fd)
+{
+    char* filename = malloc(0xFFF);
+    int MAXSIZE = 0xFFF;
+    char proclnk[0xFFF];
+    sprintf(proclnk, "/proc/self/fd/%d", fd);
+    ssize_t r = readlink(proclnk, filename, MAXSIZE);
+    filename[r] = '\0';
+    return filename;
+}
+
+int get_filetype(const char* filename,char** magic_full,size_t length)
+{
+    magic_t magic_cookie;
+    magic_cookie = magic_open(MAGIC_CHECK);
+    if (magic_cookie == NULL) 
+    {
+            return -1;
+    }
+    if (magic_load(magic_cookie, NULL) != 0) 
+    {
+            magic_close(magic_cookie);
+            return -2;
+    }
+    snprintf(*magic_full,length,"%s",magic_file(magic_cookie, filename));
+    magic_close(magic_cookie);
+    return 0;
+}
+int is_adf(const char* filename)
+{
+    int ret=0;
+    char* fileType=malloc(100);
+    switch (get_filetype(filename,&fileType,100))
+    {
+        case -1: return -1;
+        case -2: return -2;
+    }
+    if (!strcmp(fileType,"Amiga DOS disk")||!strcmp(fileType,"Amiga Fastdir FFS disk")) ret=1;
+    free(fileType);
+    return ret;
+}
+
+int is_zip(const char* filename)
+{
+    int ret=0;
+    char* fileType=malloc(100);
+    switch (get_filetype(filename,&fileType,100))
+    {
+        case -1: return -1;
+        case -2: return -2;
+    }
+    if (strstr(fileType,"Zip archive data")) ret=1;
+    free(fileType);
+    return ret;
 }
