@@ -13,3 +13,4 @@ char* fd_to_filename(int);
 int get_filetype(const char* ,char** ,size_t );
 int is_adf(const char*);
 int is_zip(const char*);
+int get_trackdevice(const char*);

@@ -130,3 +130,19 @@ int is_zip(const char* filename)
     free(fileType);
     return ret;
 }
+
+// Assuming that path has depth at least 2 it returns the trackdevce, for example , /adf/DF0/whatever returns 0, /adf/DF1/whatever returns 1, -1 on error
+int get_trackdevice(const char* path)
+{
+    char* first_occ = index(path,'/')+1;
+    if (first_occ==NULL) return -1;
+
+    char* second_occ = index(first_occ,'/')+1;
+    if (second_occ==NULL) return -1;
+
+    char trackdevicenumber[2];
+    trackdevicenumber[0] = second_occ[2];
+    trackdevicenumber[1]=0;
+
+    return atoi(trackdevicenumber);
+}

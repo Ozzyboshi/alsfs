@@ -40,8 +40,7 @@
 #include "alsfs_curl.h"
 
 
-FILE* GLOBALFD;
-
+int WGET;
 
 
 #ifdef HAVE_SYS_XATTR_H
@@ -177,11 +176,28 @@ int bb_getattr(const char *path, struct stat *statbuf)
     }
     else
 	{
-		if (countPathDepth(path)>2 && !strncmp(path,"/adf/DF",7))
+		int pathCounter=countPathDepth(path);
+		if (pathCounter>2 && !strncmp(path,"/adf/DF",7))
 		{
-			create_file_element(statbuf,2017,7,4,10,20,30,901120);
-			log_msg("Created virtual file of 901120 bytes\n");
-			return 0;
+			char adfPath[100];
+			int trackdevice=get_trackdevice(path);
+			sprintf(adfPath,"/adf/DF%d/DF%d.adf",trackdevice,trackdevice);
+			log_msg("aaaaaaaaaaaaaaa %s %d",adfPath,pathCounter);
+			if (WGET == 1 )
+			{
+				create_file_element(statbuf,2017,7,4,10,20,30,0);
+				log_msg("Created virtual file of 0 bytes\n");
+				return 0;
+			}
+			if (pathCounter==3 && !strcmp(path,adfPath))
+			{
+				create_file_element(statbuf,2017,7,4,10,20,30,901120);
+				log_msg("Created virtual file of 901120 bytes\n");
+				return 0;
+			}
+			log_msg("### File not found ###\n");
+			memset (statbuf,0,sizeof(struct stat));
+			return -2;
 		}
 		for (found=0,i=0;found==0&&i<ROOTDIRELEMENTS_NUMBER;i++)
 		{
@@ -336,6 +352,7 @@ int bb_mknod(const char *path, mode_t mode, dev_t dev)
     //bb_fullpath(fpath, path);
     if (!strncmp(path,"/adf/DF",7))
     {
+    	WGET = 1;
     	return 0;
     	/*mkdir("/tmp/alsfs");
     	asprintf(out,"%s","/tmp/alsfs/")
@@ -840,6 +857,7 @@ int bb_flush(const char *path, struct fuse_file_info *fi)
 		
 		if (is_zip(filename))
 		{
+			log_msg("\nZip file detected, decompressing...\n", path, fi);
 			struct zip *za;
 			struct zip_file *zf;
 			char buf[100];
@@ -863,7 +881,8 @@ int bb_flush(const char *path, struct fuse_file_info *fi)
 	                    log_msg("boese, boese/n");
 	                    return -1;
 	                }
-	                asprintf(&zipfilename,"%s.adf",filename);
+	                if (asprintf(&zipfilename,"%s.adf",filename)==-1)
+	                	log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
 	                int zfd = open(zipfilename, O_RDWR | O_TRUNC | O_CREAT , 0644);
                 	if (zfd < 0) 
                 	{
@@ -892,7 +911,8 @@ int bb_flush(const char *path, struct fuse_file_info *fi)
     		}
     		zip_close(za);
     		free(filename);
-    		asprintf(&filename,"%s",zipfilename);
+    		if (asprintf(&filename,"%s",zipfilename)==-1)
+    			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
     		free(zipfilename);
 		}
 		if (is_adf(filename))
@@ -908,9 +928,11 @@ int bb_flush(const char *path, struct fuse_file_info *fi)
 			log_msg("\nHttp res : %d\n",http_result);
 			unlink(filename);
 		}
+		else log_msg("File %s not a valid adf file",filename);
 		free(filename);
 		close(fi->fh);
-		if (filename) unlink(filename);
+		//if (filename) unlink(filename);
+		WGET = 0;
 	}
     // no need to get fpath on this one, since I work from fi->fh not the path
     log_fi(fi);
@@ -1141,9 +1163,9 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 		{
 			if (filler(buf, ROOTDIRELEMENTS[i], NULL, 0) != 0) 
 			{
-			    	log_msg("    ERROR bb_readdir filler:  buffer full");
+			    log_msg("    ERROR bb_readdir filler:  buffer full");
 				if (curl) curl_easy_cleanup(curl);
-			    	return -ENOMEM;
+			    return -ENOMEM;
 			}
 		}
 		return 0;
@@ -1446,31 +1468,6 @@ int bb_ftruncate(const char *path, off_t offset, struct fuse_file_info *fi)
     log_msg("\nbb_ftruncate(path=\"%s\", offset=%lld, fi=0x%08x)\n",
 	    path, offset, fi);
 
-    if (!strncmp(path,"/adf/DF",7))
-    {
-    	int fno = fileno(GLOBALFD);
-    	if (ftruncate(fno, offset))
-    	{
-    		log_msg("Ftruncate returned an error");
-    		return -1;
-    	}
-    	int MAXSIZE = 0xFFF;
-		char proclnk[0xFFF];
-		char filename[0xFFF];
-        sprintf(proclnk, "/proc/self/fd/%d", fno);
-        ssize_t r = readlink(proclnk, filename, MAXSIZE);
-        filename[r] = '\0';
-        log_msg("Sending %s via web",filename);
-		fclose(GLOBALFD);
-		char* first_occ = index(path,'/')+1;
-		char* second_occ = index(first_occ,'/')+1;
-		char trackdevicenumber[2];
-		trackdevicenumber[0] = second_occ[2];
-		trackdevicenumber[1]=0;
-		curl_post_create_adf(atoi(trackdevicenumber),filename);
-		unlink(filename);
-    }
-
     return 0;
     log_fi(fi);
     
@@ -1500,13 +1497,30 @@ int bb_fgetattr(const char *path, struct stat *statbuf, struct fuse_file_info *f
     log_msg("\nbb_fgetattr(path=\"%s\", statbuf=0x%08x, fi=0x%08x)\n",
 	    path, statbuf, fi);
 
+    int pathCounter=countPathDepth(path);
+	if (pathCounter>2 && !strncmp(path,"/adf/DF",7))
+	{
+		char adfPath[100];
+		int trackdevice=get_trackdevice(path);
+		sprintf(adfPath,"/adf/DF%d/DF%d.adf",trackdevice,trackdevice);
+		if (pathCounter==3 && !strcmp(path,adfPath))
+		{
+			create_file_element(statbuf,2017,7,4,10,20,30,901120);
+			log_msg("Created virtual file of 901120 bytes\n");
+			return 0;
+		}
+		log_msg("### File not found ###\n");
+		memset (statbuf,0,sizeof(struct stat));
+		return -2;
+	}
+
     
-	if (countPathDepth(path)>2 && !strncmp(path,"/adf/DF",7))
+	/*if (countPathDepth(path)>2 && !strncmp(path,"/adf/DF",7))
 	{
 		create_file_element(statbuf,2017,7,4,10,20,30,901120);
 		log_msg("Created virtual file of 901120 bytes\n");
 		return 0;
-	}
+	}*/
 	    
 	return curl_stat_amiga_file(path,statbuf);
 
