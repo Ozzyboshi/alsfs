@@ -182,7 +182,6 @@ int bb_getattr(const char *path, struct stat *statbuf)
 			char adfPath[100];
 			int trackdevice=get_trackdevice(path);
 			sprintf(adfPath,"/adf/DF%d/DF%d.adf",trackdevice,trackdevice);
-			log_msg("aaaaaaaaaaaaaaa %s %d",adfPath,pathCounter);
 			if (WGET == 1 )
 			{
 				create_file_element(statbuf,2017,7,4,10,20,30,0);
