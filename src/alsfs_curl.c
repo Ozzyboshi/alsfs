@@ -131,10 +131,16 @@ static size_t read_callback(void *ptr, size_t size, size_t nmemb, void *userp)
 long curl_post_create_mknode(const char* amigadestination,char* data,size_t size,off_t offset)
 {
 	char* base64EncodeOutput;
+	long ret;
+
 	json_object * jobj = json_object_new_object();
 	json_object *jstring = json_object_new_string(amigadestination);
 	data[size]='\0';
-	Base64Encode((const unsigned char*)data, size, &base64EncodeOutput);
+	/*base64EncodeOutput=malloc(size*2);
+	bzero(base64EncodeOutput,size*2);*/
+	//Base64Encode((const unsigned char*)data, size, &base64EncodeOutput);
+	//json_object *jstring2 = json_object_new_string(base64EncodeOutput);
+	base64EncodeOutput = b64_encode((const unsigned char*)data, size);
 	json_object *jstring2 = json_object_new_string(base64EncodeOutput);
 	json_object *jstring3 = json_object_new_int((int)size);
 	json_object *jstring4 = json_object_new_int((int)offset);
@@ -143,7 +149,9 @@ long curl_post_create_mknode(const char* amigadestination,char* data,size_t size
 	json_object_object_add(jobj,"size", jstring3);
 	json_object_object_add(jobj,"offset", jstring4);
 	
-	return amiga_js_call(STOREBINARY,jobj,"POST",NULL);
+	ret = amiga_js_call(STOREBINARY,jobj,"POST",NULL);
+	free(base64EncodeOutput);
+	return ret;
 }
 
 long curl_post_create_empty_file(const char* amigadestination)
@@ -377,7 +385,7 @@ char *unbase64(unsigned char *input, int length,int* length_out)
 	return buffer;
 }
 
-int Base64Encode(const unsigned char* buffer, size_t length, char** b64text) { //Encodes a binary safe base 64 string
+/*int Base64Encode(const unsigned char* buffer, size_t length, char** b64text) { //Encodes a binary safe base 64 string
 	BIO *bio, *b64;
 	BUF_MEM *bufferPtr;
 
@@ -394,8 +402,8 @@ int Base64Encode(const unsigned char* buffer, size_t length, char** b64text) { /
 
 	*b64text=(*bufferPtr).data;
 
-	return (0); //success
-}
+	return (0); 
+}*/
 
 size_t calcDecodeLength(const char* b64input) { //Calculates the length of a decoded string
 	size_t len = strlen(b64input),
@@ -426,4 +434,78 @@ int Base64Decode(char* b64message, unsigned char** buffer, size_t* length) { //D
 	BIO_free_all(bio);
 
 	return (0); //success
+}
+
+
+
+char * b64_encode (const unsigned char *src, size_t len) {
+  int i = 0;
+  int j = 0;
+  char *enc = NULL;
+  size_t size = 0;
+  unsigned char buf[4];
+  unsigned char tmp[3];
+
+  // alloc
+  enc = (char *) b64_malloc(1);
+  if (NULL == enc) { return NULL; }
+
+  // parse until end of source
+  while (len--) {
+    // read up to 3 bytes at a time into `tmp'
+    tmp[i++] = *(src++);
+
+    // if 3 bytes read then encode into `buf'
+    if (3 == i) {
+      buf[0] = (tmp[0] & 0xfc) >> 2;
+      buf[1] = ((tmp[0] & 0x03) << 4) + ((tmp[1] & 0xf0) >> 4);
+      buf[2] = ((tmp[1] & 0x0f) << 2) + ((tmp[2] & 0xc0) >> 6);
+      buf[3] = tmp[2] & 0x3f;
+
+      // allocate 4 new byts for `enc` and
+      // then translate each encoded buffer
+      // part by index from the base 64 index table
+      // into `enc' unsigned char array
+      enc = (char *) b64_realloc(enc, size + 4);
+      for (i = 0; i < 4; ++i) {
+        enc[size++] = b64_table[buf[i]];
+      }
+
+      // reset index
+      i = 0;
+    }
+  }
+
+  // remainder
+  if (i > 0) {
+    // fill `tmp' with `\0' at most 3 times
+    for (j = i; j < 3; ++j) {
+      tmp[j] = '\0';
+    }
+
+    // perform same codec as above
+    buf[0] = (tmp[0] & 0xfc) >> 2;
+    buf[1] = ((tmp[0] & 0x03) << 4) + ((tmp[1] & 0xf0) >> 4);
+    buf[2] = ((tmp[1] & 0x0f) << 2) + ((tmp[2] & 0xc0) >> 6);
+    buf[3] = tmp[2] & 0x3f;
+
+    // perform same write to `enc` with new allocation
+    for (j = 0; (j < i + 1); ++j) {
+      enc = (char *) b64_realloc(enc, size + 1);
+      enc[size++] = b64_table[buf[j]];
+    }
+
+    // while there is still a remainder
+    // append `=' to `enc'
+    while ((i++ < 3)) {
+      enc = (char *) b64_realloc(enc, size + 1);
+      enc[size++] = '=';
+    }
+  }
+
+  // Make sure we have enough space to add '\0' character at end.
+  enc = (char *) b64_realloc(enc, size + 1);
+  enc[size] = '\0';
+
+  return enc;
 }

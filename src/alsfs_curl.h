@@ -29,8 +29,8 @@ struct curl_url_data {
 size_t curl_write_data(void *, size_t , size_t , struct curl_url_data *);
 long amiga_js_call(const char*,json_object *,const char*,char**);
 static size_t read_callback(void *, size_t , size_t , void *);
-int Base64Encode(const unsigned char* , size_t , char** );
-int Base64Decode(char*, unsigned char**, size_t*);
+/*int Base64Encode(const unsigned char* , size_t , char** );
+int Base64Decode(char*, unsigned char**, size_t*);*/
 long curl_post_create_empty_file(const char*);
 long curl_post_create_empty_drawer(const char*);
 long curl_put_rename_file_drawer(const char*,const char*);
@@ -53,3 +53,24 @@ char *unbase64(unsigned char *, int,int*);
 int Base64Decode(char* , unsigned char** , size_t* );
 size_t calcDecodeLength(const char* );
 
+#ifndef b64_malloc
+#  define b64_malloc(ptr) malloc(ptr)
+#endif
+#ifndef b64_realloc
+#  define b64_realloc(ptr, size) realloc(ptr, size)
+#endif
+extern void* b64_malloc(size_t);
+extern void* b64_realloc(void*, size_t);
+
+char * b64_encode (const unsigned char *, size_t );
+
+static const char b64_table[] = {
+  'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H',
+  'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X',
+  'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+  'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n',
+  'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+  'w', 'x', 'y', 'z', '0', '1', '2', '3',
+  '4', '5', '6', '7', '8', '9', '+', '/'
+};
