@@ -7,5 +7,5 @@ apt-get install dh-autoreconf
 apt-get install libfuse-dev
 
 apt-get install libcurl4-openssl-dev
-apt-get install libssl-dev
+apt-get install libssl-dev libzip-dev
 
