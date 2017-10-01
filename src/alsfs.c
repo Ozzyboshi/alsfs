@@ -136,6 +136,7 @@ int bb_getattr(const char *path, struct stat *statbuf)
     data.size = 0;
     data.data = malloc(4096);
     long http_code = 0;
+    char* httpbody=NULL;
 
     if (!strcmp(path,"/"))
     {
@@ -217,83 +218,9 @@ int bb_getattr(const char *path, struct stat *statbuf)
 		}
 		else
 		{
-			/*url=malloc(strlen(URL_LISTSTAT)+strlen(path)+1);
-			strcpy(url,URL_LISTSTAT);*/
-			out=malloc(strlen(path)+1);
-			urlToAmiga(path,out);
-			/*strcat(url,out);*/
-			char *urlEncoded = curl_easy_escape(curl, out, 0);
-			if (urlEncoded) log_msg("urlencoded : ##%s##",urlEncoded);
-			if (asprintf(&url,"http://%s/%s?path=%s",ALSFS_DATA->alsfs_webserver,LISTSTAT,urlEncoded)==-1)
-				fprintf(stderr, "asprintf() failed");
-			curl_free(urlEncoded);
-			free(out);
-			log_msg("url : ##%s##",url);
-
-			curl = curl_easy_init();
-			if (curl)
-			{
-				curl_easy_setopt(curl, CURLOPT_URL,url);
-				free(url);
-				curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-				   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
-				res = curl_easy_perform(curl);
-				if(res != CURLE_OK)
-				 		log_msg("curl_easy_perform() failed: %s %d\n",curl_easy_strerror(res),res);
-					
-					curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
-					curl_easy_cleanup(curl);
-			}
-			if (http_code == 404)
-			{
-				log_msg("### File not found ###\n");
-				memset (statbuf,0,sizeof(struct stat));
-				return -2;
-			}
-
-			log_msg("data : ##%s##",data.data);
-
-			json_object * jobj = json_tokener_parse(data.data);
-			json_object* returnObj;
-			json_object_object_get_ex(jobj, "st_size",&returnObj);
-			const char *st_size = json_object_get_string(returnObj);
-				
-			json_object_object_get_ex(jobj, "directory",&returnObj);
-			int directory = atoi(json_object_get_string(returnObj));
-                                
-			json_object_object_get_ex(jobj, "days",&returnObj);
-			int days = atoi(json_object_get_string(returnObj));
-                                
-			json_object_object_get_ex(jobj, "minutes",&returnObj);
-			int minutes = atoi(json_object_get_string(returnObj));
-                                
-			json_object_object_get_ex(jobj, "seconds",&returnObj);
-			int seconds = atoi(json_object_get_string(returnObj));
-
-			//const char *st_size = json_object_get_string(json_object_object_get(jobj, "st_size"));
-			log_msg("stsize : ##%s##",st_size);
-
-			time_t amigatime = amigadate_to_pc(days,minutes,seconds);
-
-			bb_fullpath(fpath, "1");
-				//retstat = log_syscall("lstat", lstat("/root/fuse-tutorial-2016-03-25/src/rootdir/1", statbuf), 0);
-			memset (statbuf,0,sizeof(struct stat));
-			statbuf->st_size=atol(st_size);
-			statbuf->st_dev = 0;
-			statbuf->st_ino = 0;
-			if (directory) statbuf->st_mode = 0040777;
-			else statbuf->st_mode = 0100777;
-			statbuf->st_nlink = 0;
-			statbuf->st_uid = 0;
-			statbuf->st_gid = 0;
-			statbuf->st_rdev = 0;
-			//st_size = 0
-			statbuf->st_blksize = ALSFS_BLK_SIZE;
-			statbuf->st_blocks = 0;
-			statbuf->st_atime = amigatime;
-			statbuf->st_mtime = amigatime;
-			statbuf->st_ctime = amigatime;
-			return 0;
+		        int ret = curl_stat_amiga_file(path,statbuf);
+		        log_msg("statbuf st size: %d\n",statbuf->st_size);
+			return ret;
 		}
 	}
     
@@ -712,17 +639,25 @@ int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
 			log_msg("Base64message is NULL (no LF found on %s)",httpbody);
 			return 0;
 		}
-		unsigned char* base64DecodeOutput;
+		//unsigned char* base64DecodeOutput;
 		//size_t test;
 		char* strip;
-		if (asprintf(&strip,"%s\n",base64Message)==-1)
+		if (asprintf(&strip,"%s",base64Message)==-1)
 			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
 		//strip[strlen(strip)-1]=0;
 		//Base64Decode(strip, &base64DecodeOutput, &test);
-		int rawdataLength=0;
+		// vecchio int rawdataLength=0;
+		size_t rawdataLength=0;
 		log_msg("Lunghezza messaggio %d\n",strlen(base64Message));
-		log_msg(" messaggio ##%s##\n",base64Message);
-		char *output = unbase64(strip, strlen(strip),&rawdataLength);
+		if ( strlen(base64Message) == 2)
+		{
+		    log_msg("Messaggio di 2 rilevato: %s\n",base64Message);
+		    return 0;
+		}
+		//log_msg(" messaggio ##%s##\n",base64Message);
+		// vecchio char *output = unbase64(strip, strlen(strip),&rawdataLength);
+		unsigned char* output;
+		/* nuovo */  Base64Decode(strip, &output, &rawdataLength);
 		log_msg("Output binario: %d %d %d %d %d - length %d\n",(unsigned char) output[0],(unsigned char)output[1],(unsigned char)output[2],(unsigned char)output[3],(unsigned char)output[4],rawdataLength);
 		memcpy(buf,output,rawdataLength);
 		contBytes+=rawdataLength;
@@ -731,11 +666,12 @@ int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
 		
 		while (base64Message=strtok(NULL,"\n"))
 		{
-			if (asprintf(&strip,"%s\n",base64Message)==-1)
+			if (asprintf(&strip,"%s",base64Message)==-1)
 				log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
 				
 			rawdataLength=0;
-			output = unbase64(strip, strlen(strip),&rawdataLength);
+			// vecchio output = unbase64(strip, strlen(strip),&rawdataLength);
+			Base64Decode(strip, &output, &rawdataLength);
 			memcpy(buf+contBytes,output,rawdataLength);
 			contBytes+=rawdataLength;
 			free(output);
@@ -911,7 +847,7 @@ int bb_flush(const char *path, struct fuse_file_info *fi)
     		zip_close(za);
     		free(filename);
     		if (asprintf(&filename,"%s",zipfilename)==-1)
-    			log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+    			log_msg("asprintf() failed at file alfs.c:%d",__LINE__);
     		free(zipfilename);
 		}
 		if (is_adf(filename))
@@ -923,7 +859,9 @@ int bb_flush(const char *path, struct fuse_file_info *fi)
 			trackdevicenumber[1]=0;
 			log_msg("\ntrackdevice %d\n",atoi(trackdevicenumber));
 			long http_result = 0;
-			curl_post_create_adf(atoi(trackdevicenumber),filename);
+			
+			//curl_post_create_adf(atoi(trackdevicenumber),filename);
+			curl_post_create_adf_b64(atoi(trackdevicenumber),filename);
 			log_msg("\nHttp res : %d\n",http_result);
 			unlink(filename);
 		}

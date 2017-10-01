@@ -101,31 +101,31 @@
 #define LSTAT_FOLLOWS_SLASHED_SYMLINK 1
 
 /* Name of package */
-#define PACKAGE "fuse-tutorial"
+#define PACKAGE "alsfs"
 
 /* Define to the address where bug reports for this package should be sent. */
-#define PACKAGE_BUGREPORT "joseph@pfeifferfamily.net"
+#define PACKAGE_BUGREPORT "gun101@email.it"
 
 /* Define to the full name of this package. */
-#define PACKAGE_NAME "fuse-tutorial"
+#define PACKAGE_NAME "alsfs"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "fuse-tutorial 2016-03-25"
+#define PACKAGE_STRING "alsfs 2017-09-08"
 
 /* Define to the one symbol short name of this package. */
-#define PACKAGE_TARNAME "fuse-tutorial"
+#define PACKAGE_TARNAME "alsfs"
 
 /* Define to the home page for this package. */
 #define PACKAGE_URL ""
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "2016-03-25"
+#define PACKAGE_VERSION "2017-09-08"
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
 /* Version number of package */
-#define VERSION "2016-03-25"
+#define VERSION "2017-09-08"
 
 /* Define for Solaris 2.5.1 so the uint64_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the

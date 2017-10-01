@@ -28,6 +28,7 @@
 #define READFILE "readFile"
 #define DELETEFILE "deleteFile"
 #define WRITEADF "writeAdf"
+#define WRITEADFB64 "writeAdfB64"
 #define READADF "readAdf"
 #define TESTFLOPPYDISK "testFloppyDisk"
 

@@ -50,8 +50,7 @@ long amiga_js_call(const char* endpoint,json_object * jobj,const char* http_meth
 	if (asprintf(&url,"http://%s/%s",ALSFS_DATA->alsfs_webserver,endpoint)==-1)
 		log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
 	log_msg("Preparing url %s with jobj %s\n",url,json_object_get_string(jobj));
-	if (jobj) log_msg("JSON %s",json_object_get_string(jobj));
-	log_msg("preparing to perform http req %d",http_body==NULL);
+	if (jobj) log_msg("JSON %s\n",json_object_get_string(jobj));
 
 	curl_easy_setopt(curl, CURLOPT_URL, url);
 	free(url);
@@ -71,12 +70,12 @@ long amiga_js_call(const char* endpoint,json_object * jobj,const char* http_meth
 	headers = curl_slist_append(headers, "Content-Type: application/json");
 	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
 	curl_easy_perform(curl);
-	log_msg("performed http req");
+	log_msg("performed http req\n");
 	curl_slist_free_all(headers); /* free the header list */
 
     curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
 	curl_easy_cleanup(curl);
-		
+	log_msg("Http return : %d\n",http_code);	
 	if (http_code==200 && http_body)
 	{
 		if (asprintf(http_body,"%s",data.data)==-1)
@@ -187,6 +186,29 @@ long curl_post_create_adf(const int trackDevice,const char* adfFilename)
 	
 	return amiga_js_call(WRITEADF,jobj,"POST",NULL);
 }
+long curl_post_create_adf_b64(const int trackDevice,const char* fileName)
+{
+	FILE *f = fopen(fileName, "rb");
+	fseek(f, 0, SEEK_END);
+	long fsize = ftell(f);
+	fseek(f, 0, SEEK_SET);
+	char *data = malloc(fsize + 1);
+	if (fread(data, fsize, 1, f)==-1)
+		log_msg("fread() failed at file alfs.c:%d",__LINE__);
+	fclose(f);
+	char* base64EncodeOutput = b64_encode((const unsigned char*)data, fsize);
+	json_object * jobj = json_object_new_object();
+	json_object *jstring = json_object_new_string(base64EncodeOutput);
+	json_object *jstring2 = json_object_new_int(trackDevice);
+	json_object *jstring3 = json_object_new_int(0);
+	json_object *jstring4 = json_object_new_int(79);
+	json_object_object_add(jobj,"trackDevice", jstring2);
+	json_object_object_add(jobj,"adfB64Data", jstring);
+	json_object_object_add(jobj,"start", jstring3);
+	json_object_object_add(jobj,"end", jstring4);
+	return amiga_js_call(WRITEADFB64,jobj,"POST",NULL);
+	free(base64EncodeOutput);
+}
 
 long curl_put_rename_file_drawer(const char* oldname,const char* newname)
 {
@@ -214,6 +236,15 @@ long curl_get_read_file(const char* amigadestination,size_t size,off_t offset,ch
 		
 	amiga_js_call(READFILE,jobj,"GET",buf);
 	return 200;
+}
+
+long curl_get_stat(const char* path,char** buf)
+{
+	char app[100];
+	json_object * jobj = json_object_new_object();
+	json_object *jstring = json_object_new_string(path);
+	json_object_object_add(jobj,"path", jstring);
+	return amiga_js_call(LISTSTAT,jobj,"GET",buf);
 }
 
 long curl_get_read_adf(int trackdevice,size_t size,off_t offset,char** buf)
@@ -254,81 +285,58 @@ int curl_stat_amiga_file(const char* path,struct stat *statbuf)
 	int http_code;
 	char* url;
 	CURLcode res;
-	
-	data.size=0;
-	data.data=malloc(4096);
+	char* httpbody;
 	
 	out=malloc(strlen(path)+1);
-	trans_urlToAmiga(path,out);
-	char *urlEncoded = curl_easy_escape(curl, out, 0);
-	if (urlEncoded) log_msg("urlencoded : ##%s##",urlEncoded);
-	if (asprintf(&url,"http://%s/%s?path=%s",ALSFS_DATA->alsfs_webserver,LISTSTAT,urlEncoded)==-1)
-		fprintf(stderr, "asprintf() failed");
-	curl_free(urlEncoded);
-	free(out);
-	log_msg("url : ##%s##",url);
+        urlToAmiga(path,out);
+        long http_response = curl_get_stat(out,&httpbody);
+        free(out);
+        log_msg("HTTP RESPONSE: %d\n",http_response);
+        switch (http_response)
+        {
+              case 404:	log_msg("### File not found ###\n");
+                        memset (statbuf,0,sizeof(struct stat));
+                        return -2;
+              case 200:	log_msg("Entering 200\n");
+						if (httpbody==NULL)
+						{
+							log_msg("httpbody is NULL ");
+							return 0;
+						}
+                                         log_msg("httpbody is NOT NULL ");
+                                         log_msg("Http body : %s\n",httpbody);
+                                          json_object * jobj = json_tokener_parse(httpbody);
+                                          json_object* returnObj;
+                                          json_object_object_get_ex(jobj, "st_size",&returnObj);
+                                          const char *st_size = json_object_get_string(returnObj);
+								
+                                          json_object_object_get_ex(jobj, "directory",&returnObj);
+                                          int directory = atoi(json_object_get_string(returnObj));
+				                                
+                                          json_object_object_get_ex(jobj, "days",&returnObj);
+                                          int days = atoi(json_object_get_string(returnObj));
+				                                
+                                          json_object_object_get_ex(jobj, "minutes",&returnObj);
+                                          int minutes = atoi(json_object_get_string(returnObj));
+				                                
+                                          json_object_object_get_ex(jobj, "seconds",&returnObj);
+                                          int seconds = atoi(json_object_get_string(returnObj));
 
-	curl = curl_easy_init();
-	if (curl)
-	{
-		curl_easy_setopt(curl, CURLOPT_URL,url);
-		free(url);
-		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_data);
-		curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
-		res = curl_easy_perform(curl);
-		if(res != CURLE_OK)
-			log_msg("curl_easy_perform() failed: %s %d\n",curl_easy_strerror(res),res);
-					
-		curl_easy_getinfo (curl, CURLINFO_RESPONSE_CODE, &http_code);
-		curl_easy_cleanup(curl);
-	}
-	if (http_code == 404)
-	{
-		log_msg("### File not found ###\n");
-		memset (statbuf,0,sizeof(struct stat));
-		return -2;
-	}
+                                          log_msg("stsize : ##%s##",st_size);
 
-	log_msg("data : ##%s##",data.data);
+                                          time_t amigatime = amigadate_to_pc(days,minutes,seconds);
 
-	json_object * jobj = json_tokener_parse(data.data);
-	json_object* returnObj;
-	json_object_object_get_ex(jobj, "st_size",&returnObj);
-	const char *st_size = json_object_get_string(returnObj);
-				
-	json_object_object_get_ex(jobj, "directory",&returnObj);
-	int directory = atoi(json_object_get_string(returnObj));
-	log_msg("stsize : ##%s##",st_size);
-
-	struct tm info;
-	time_t lol;
-		
-	info.tm_year = 2001 - 1900;
-	info.tm_mon = 7 - 1;
-	info.tm_mday = 4;
-	info.tm_hour = 10;
-	info.tm_min = 20;
-	info.tm_sec = 30;
-	info.tm_isdst = -1;
-	lol = mktime(&info);
-
-
-	memset (statbuf,0,sizeof(struct stat));
-	statbuf->st_size=atol(st_size);
-	statbuf->st_dev = 0;
-	statbuf->st_ino = 0;
-	if (directory) statbuf->st_mode = 0040777;
-	else statbuf->st_mode = 0100777;
-	statbuf->st_nlink = 0;
-	statbuf->st_uid = 0;
-	statbuf->st_gid = 0;
-	statbuf->st_rdev = 0;
-	statbuf->st_blksize = ALSFS_BLK_SIZE;
-	statbuf->st_blocks = 0;
-	statbuf->st_atime = lol;
-	statbuf->st_mtime = lol;
-	statbuf->st_ctime = lol;
-	return 0;
+                                          if (directory) create_dir_element(statbuf,2017,7,4,10,20,30);
+                                          else create_file_element(statbuf,2017,7,4,10,20,30,atol(st_size));
+                                          statbuf->st_atime = amigatime;
+                                          statbuf->st_mtime = amigatime;
+                                          statbuf->st_ctime = amigatime;
+                                          statbuf->st_size = (size_t)atol(st_size);
+                                          return 0;
+                                default :	log_msg("%s response not handled\n",http_response);
+        }
+        return 0;
+	
 }
 
 char* trans_urlToAmiga(const char* path,char* out)
