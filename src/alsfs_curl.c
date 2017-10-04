@@ -49,7 +49,8 @@ long amiga_js_call(const char* endpoint,json_object * jobj,const char* http_meth
 
 	if (asprintf(&url,"http://%s/%s",ALSFS_DATA->alsfs_webserver,endpoint)==-1)
 		log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
-	log_msg("Preparing url %s with jobj %s\n",url,json_object_get_string(jobj));
+	if (jobj) log_msg("Preparing url %s with jobj %s\n",url,json_object_get_string(jobj));
+	else log_msg("Preparing url %s without jobj \n",url);
 	if (jobj) log_msg("JSON %s\n",json_object_get_string(jobj));
 
 	curl_easy_setopt(curl, CURLOPT_URL, url);
@@ -135,10 +136,6 @@ long curl_post_create_mknode(const char* amigadestination,char* data,size_t size
 	json_object * jobj = json_object_new_object();
 	json_object *jstring = json_object_new_string(amigadestination);
 	data[size]='\0';
-	/*base64EncodeOutput=malloc(size*2);
-	bzero(base64EncodeOutput,size*2);*/
-	//Base64Encode((const unsigned char*)data, size, &base64EncodeOutput);
-	//json_object *jstring2 = json_object_new_string(base64EncodeOutput);
 	base64EncodeOutput = b64_encode((const unsigned char*)data, size);
 	json_object *jstring2 = json_object_new_string(base64EncodeOutput);
 	json_object *jstring3 = json_object_new_int((int)size);
@@ -259,6 +256,11 @@ long curl_get_read_adf(int trackdevice,size_t size,off_t offset,char** buf)
 		
 	amiga_js_call(READADF,jobj,"GET",buf);
 	return 200;
+}
+
+long curl_get_list_floppies(char** buf)
+{
+	return amiga_js_call(LISTFLOPPIES,NULL,"GET",buf);
 }
 
 long curl_delete_delete_file(const char* amigadestination)

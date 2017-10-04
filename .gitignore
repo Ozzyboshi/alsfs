@@ -9,3 +9,9 @@ src/alsfs
 configure
 src/alsfs.o
 src/Makefile.in
+Makefile.in
+aclocal.m4
+src/alsfs_curl.o
+src/bbfs.log
+src/log.o
+src/virtual_stat.o

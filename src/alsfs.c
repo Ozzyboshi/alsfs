@@ -154,7 +154,6 @@ int bb_getattr(const char *path, struct stat *statbuf)
         return -1;
   		log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",path, statbuf);
        	bb_fullpath(fpath, path);
-       	log_msg("vafo a cercare %s",fpath);
        	retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
        	log_stat(statbuf);
        	return retstat;
@@ -201,12 +200,40 @@ int bb_getattr(const char *path, struct stat *statbuf)
 		}
 		for (found=0,i=0;found==0&&i<ROOTDIRELEMENTS_NUMBER;i++)
 		{
-			log_msg("confronto \"%s\" con %s)\n",ROOTDIRELEMENTS[i],&path[1]);
+			log_msg("comparing \"%s\" with %s)\n",ROOTDIRELEMENTS[i],&path[1]);
 			if (strlen(path)>0 && path[0]=='/' && !strncmp(ROOTDIRELEMENTS[i],&path[1],strlen(ROOTDIRELEMENTS[i])))
 			{
-				log_msg("conto gli slashed per path \"%s\" sono %d)\n",path,countPathDepth(path));
-				if (countPathDepth(path)==2)
-					found=1;
+				log_msg("counting slashes for path \"%s\" : %d)\n",path,countPathDepth(path));
+				if (countPathDepth(path)==2&& !strcmp(ROOTDIRELEMENTS[i],"adf"))
+				{
+					char* httpbody;
+					long http_response = curl_get_list_floppies(&httpbody);
+					if (http_response == 200)
+    				{
+    					if (httpbody==NULL)
+						{
+							log_msg("httpbody is NULL \n");
+							return -1;
+						}
+						json_object * jobj = json_tokener_parse(httpbody);
+						int arraylen = json_object_array_length(jobj);
+						int j=0;
+						for (j = 0; j < arraylen; j++) 
+						{
+							json_object* medi_array_obj = json_object_array_get_idx(jobj, j);
+							log_msg("#%s# #%s#\n",json_object_get_string(medi_array_obj),rindex(path,'/')+1);
+							if (!strcmp(json_object_get_string(medi_array_obj),rindex(path,'/')+1))
+							{
+								log_msg("Path corresponds to a valid floppy drive\n");
+								create_dir_element(statbuf,2017,7,4,10,20,30);
+								return 0;
+							}
+						}
+					}
+					log_msg("Path does not correspond to a valid floppy drive\n");
+					return -2;
+				}
+				if (countPathDepth(path)==2) found=1;
 			}
 		}	
 
@@ -218,8 +245,8 @@ int bb_getattr(const char *path, struct stat *statbuf)
 		}
 		else
 		{
-		        int ret = curl_stat_amiga_file(path,statbuf);
-		        log_msg("statbuf st size: %d\n",statbuf->st_size);
+			int ret = curl_stat_amiga_file(path,statbuf);
+			log_msg("statbuf st size: %d\n",statbuf->st_size);
 			return ret;
 		}
 	}
@@ -1197,12 +1224,6 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
     
     log_msg("\nbb_readdir(path=\"%s\", buf=0x%08x, filler=0x%08x, offset=%lld, fi=0x%08x)\n",
 	    path, buf, filler, offset, fi);
-    // once again, no need for fullpath -- but note that I need to cast fi->fh
-//FILE* fd;
-
-
-//fd=fopen("/tmp/lol","w");
-//	fprintf(fd,"°°°°°°%s\n",data.data);
 
 	if (filler(buf, ".", NULL, 0) != 0) 
 		{

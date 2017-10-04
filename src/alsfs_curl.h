@@ -42,6 +42,7 @@ long curl_get_stat(const char*,char** );
 long curl_get_read_adf(int ,size_t ,off_t ,char**);
 int curl_stat_amiga_file(const char* path,struct stat *statbuf);
 int curl_get_test_floppy_disk(int,char**);
+long curl_get_list_floppies(char**);
 char* trans_urlToAmiga(const char*,char*);
 int trans_countPathDepth(const char*);
 size_t calcDecodeLength(const char*);
