@@ -29,11 +29,10 @@ struct curl_url_data {
 size_t curl_write_data(void *, size_t , size_t , struct curl_url_data *);
 long amiga_js_call(const char*,json_object *,const char*,char**);
 static size_t read_callback(void *, size_t , size_t , void *);
-/*int Base64Encode(const unsigned char* , size_t , char** );
-int Base64Decode(char*, unsigned char**, size_t*);*/
 long curl_post_create_empty_file(const char*);
 long curl_post_create_empty_drawer(const char*);
 long curl_put_rename_file_drawer(const char*,const char*);
+long curl_put_relabel(const char* oldname,const char* newname);
 long curl_post_create_adf(const int,const char*);
 long curl_post_create_adf_b64(const int,const char*);
 long curl_post_create_mknode(const char*,char*,size_t,off_t);

@@ -23,6 +23,7 @@
 #define LISTSTAT "stat"
 #define STOREBINARY "storeBinary"
 #define RENAME "renameFileOrDrawer"
+#define RELABEL "relabel"
 #define MKDIR "createEmptyDrawer"
 #define TOUCH "createEmptyFile"
 #define READFILE "readFile"

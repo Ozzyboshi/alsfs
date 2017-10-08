@@ -423,7 +423,44 @@ int bb_rename(const char *path, const char *newpath)
     char fnewpath[PATH_MAX];
     char* out;
     char* out2;
-    
+    int i=0;
+    int j=0;
+    int found=0;
+
+    log_msg("\nbb_rename(fpath=\"%s\", newpath=\"%s\")\n",
+	    path, newpath);
+    if (countPathDepth(newpath)==3)
+    {
+	    for (found=0,i=0;found==0&&i<ROOTDIRELEMENTS_NUMBER;i++)
+		{
+			log_msg("comparing \"%s\" with %s)\n",ROOTDIRELEMENTS[i],&path[1]);
+			if (strlen(path)>0 && path[0]=='/' && !strncmp(ROOTDIRELEMENTS[i],&path[1],strlen(ROOTDIRELEMENTS[i])))
+			{
+				if (countPathDepth(path)==2&& !strcmp(ROOTDIRELEMENTS[i],"volumes"))
+				{
+					char* oldName,*newName;
+					if (asprintf(&oldName,"%s",rindex(path,'/')+1)==-1)
+						log_msg("asprintf() failed at file alsfs.c:%d",__LINE__);
+					newName=malloc(strlen(newpath)+1);
+					urlToAmiga(newpath,newName);
+
+					for (j=0;newName[j]!=0;j++)
+						if (newName[j]==':') { newName[j]=0; break; }
+					
+					log_msg("oldname:#%s#\n",oldName);
+					log_msg("newname:#%s#\n",newName);
+					long http_response = curl_put_relabel(oldName,newName);
+					free(oldName);
+					free(newName);
+					log_msg("http_response:#%d#\n",http_response);
+					if (http_response=200) return 0;
+					else if (http_response==404) return -2;
+					return -1;
+				}
+			}
+		}
+	}
+    return 0;
     out=malloc(strlen(path)+1);
 	urlToAmiga(path,out);
 	out2=malloc(strlen(newpath)+1);
@@ -433,13 +470,6 @@ int bb_rename(const char *path, const char *newpath)
 	free(out2);
 	if (http_response=200) return 0;
 	return -1;
-    
-    log_msg("\nbb_rename(fpath=\"%s\", newpath=\"%s\")\n",
-	    path, newpath);
-    bb_fullpath(fpath, path);
-    bb_fullpath(fnewpath, newpath);
-
-    return log_syscall("rename", rename(fpath, fnewpath), 0);
 }
 
 /** Create a hard link to a file */
@@ -591,7 +621,7 @@ int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
     if (!strncmp(path,"/adf/DF",7))
     {
     	if (asprintf(&out,"%c",path[strlen(path)-1])==-1)
-    		log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+    		log_msg("asprintf() failed at file alsfs.c:%d",__LINE__);
     	long http_response = curl_get_read_adf(atoi(out),size,offset,&httpbody);
     	free(out);
     	if (http_response == 200)
@@ -609,7 +639,7 @@ int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
 			}
 			char* strip;
 			if (asprintf(&strip,"%s",base64Message)==-1)
-				log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+				log_msg("asprintf() failed at file alfs:%d",__LINE__);
 			size_t rawdataLength=0;
 			log_msg("%s",strip);
 			log_msg("Strip lungo %d",strlen(strip));
@@ -628,7 +658,7 @@ int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
 				//log_msg("Lunghezza messaggio successivo%d\n",strlen(base64Message));
 				//log_msg(" messaggio successivo ##%s##\n",base64Message);
 				if (asprintf(&strip,"%s",base64Message)==-1)
-					log_msg("asprintf() failed at file alfs_curl.c:%d",__LINE__);
+					log_msg("asprintf() failed at file alfs.c:%d",__LINE__);
 					
 				rawdataLength=0;
 				//output = unbase64(strip, strlen(strip),&rawdataLength);

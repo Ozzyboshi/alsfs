@@ -15,3 +15,4 @@ src/alsfs_curl.o
 src/bbfs.log
 src/log.o
 src/virtual_stat.o
+example

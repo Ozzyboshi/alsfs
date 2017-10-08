@@ -218,6 +218,17 @@ long curl_put_rename_file_drawer(const char* oldname,const char* newname)
 	return amiga_js_call(RENAME,jobj,"PUT",NULL);
 }
 
+long curl_put_relabel(const char* oldname,const char* newname)
+{
+	json_object * jobj = json_object_new_object();
+	json_object *jstring = json_object_new_string(oldname);
+	json_object *jstring2 = json_object_new_string(newname);
+	json_object_object_add(jobj,"oldVolumeName", jstring);
+	json_object_object_add(jobj,"newVolumeName", jstring2);
+	
+	return amiga_js_call(RELABEL,jobj,"PUT",NULL);
+}
+
 long curl_get_read_file(const char* amigadestination,size_t size,off_t offset,char** buf)
 {
 	char app[100];
