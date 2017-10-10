@@ -460,7 +460,7 @@ int bb_rename(const char *path, const char *newpath)
 			}
 		}
 	}
-    return 0;
+   
     out=malloc(strlen(path)+1);
 	urlToAmiga(path,out);
 	out2=malloc(strlen(newpath)+1);
