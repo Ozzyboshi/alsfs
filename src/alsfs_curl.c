@@ -248,11 +248,18 @@ long curl_get_read_file(const char* amigadestination,size_t size,off_t offset,ch
 
 long curl_get_stat(const char* path,char** buf)
 {
-	char app[100];
 	json_object * jobj = json_object_new_object();
 	json_object *jstring = json_object_new_string(path);
 	json_object_object_add(jobj,"path", jstring);
 	return amiga_js_call(LISTSTAT,jobj,"GET",buf);
+}
+
+long curl_get_content(const char* path,char** buf)
+{
+	json_object * jobj = json_object_new_object();
+	json_object *jstring = json_object_new_string(path);
+	json_object_object_add(jobj,"path", jstring);
+	return amiga_js_call(LISTCONTENT,jobj,"GET",buf);
 }
 
 long curl_get_read_adf(int trackdevice,size_t size,off_t offset,char** buf)

@@ -1221,8 +1221,45 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 		free(buf2);
 		return 0;
 	}
+
+	// A full path inside volumes is requested
 	else
 	{
+		if (filler(buf, ".", NULL, 0) != 0 || filler(buf, "..", NULL, 0) != 0) 
+		{
+		    log_msg("    ERROR bb_readdir filler:  buffer full");
+		    return -ENOMEM;
+		}
+		char* httpbody;
+		out=malloc(strlen(path)+1);
+		urlToAmiga(path,out);
+		long http_response = curl_get_content(out,&httpbody);
+		free(out);
+		if (http_response == 200)
+    	{
+    		if (httpbody==NULL)
+			{
+				log_msg("httpbody is NULL \n");
+				return -ENOMEM;
+			}
+			json_object * jobj = json_tokener_parse(httpbody);
+			free(httpbody);
+			int arraylen = json_object_array_length(jobj);
+			int j=0;
+			for (j = 0; j < arraylen; j++) 
+			{
+				json_object* medi_array_obj = json_object_array_get_idx(jobj, j);
+				log_msg("#%s#\n",json_object_get_string(medi_array_obj));
+				if (filler(buf, json_object_get_string(medi_array_obj), NULL, 0) != 0) 
+				{
+        			log_msg("    ERROR bb_readdir filler:  buffer full");
+        			return -ENOMEM;
+    			}
+    		}
+			return 0;
+		}
+		return -ENOMEM;
+
 		/*url=malloc(strlen(URL_LISTCONTENT)+strlen(path)+1);
 		strcpy(url,URL_LISTCONTENT);*/
 		out=malloc(strlen(path)+1);
@@ -1247,7 +1284,7 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 		   curl_easy_setopt(curl, CURLOPT_WRITEDATA, &data);
 		res = curl_easy_perform(curl);
 		if(res != CURLE_OK)
-		 		fprintf(stderr, "curl_easy_perform() failed: %s\n",
+		 	fprintf(stderr, "curl_easy_perform() failed: %s\n",
 		curl_easy_strerror(res));
 		curl_easy_cleanup(curl);
   	}
@@ -1279,37 +1316,6 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
     		}
 //		fprintf(fd,"name : %s\n",json_object_get_string(medi_array_obj));
 	}
-//	fclose(fd);
-    //dp = (DIR *) (uintptr_t) fi->fh;
-
-    // Every directory contains at least two entries: . and ..  If my
-    // first call to the system readdir() returns NULL I've got an
-    // error; near as I can tell, that's the only condition under
-    // which I can get an error from readdir()
-   /* de = readdir(dp);
-    log_msg("    readdir returned 0x%p\n", de);
-    if (de == 0) {
-	retstat = log_error("bb_readdir readdir");
-	return retstat;
-    }*/
-
-    // This will copy the entire directory into the buffer.  The loop exits
-    // when either the system readdir() returns NULL, or filler()
-    // returns something non-zero.  The first case just means I've
-    // read the whole directory; the second means the buffer is full.
-    /*do {
-	log_msg("calling filler with name %s\n", de->d_name);
-	if (filler(buf, de->d_name, NULL, 0) != 0) {
-	    log_msg("    ERROR bb_readdir filler:  buffer full");
-	    return -ENOMEM;
-	}
-    } while ((de = readdir(dp)) != NULL);
-
-    log_msg("calling filler with name %s\n", "test");
-    if (filler(buf, "test", NULL, 0) != 0) {
-        log_msg("    ERROR bb_readdir filler:  buffer full");
-        return -ENOMEM;
-    }*/
     
     log_fi(fi);
     
