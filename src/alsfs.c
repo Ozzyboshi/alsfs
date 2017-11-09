@@ -50,7 +50,7 @@ int WGET;
 #include "log.h"
 
 int countPathDepth(const char* );
-char* urlToAmiga(const char*,char*);
+//char* urlToAmiga(const char*,char*);
 
 
 struct url_data {
@@ -58,21 +58,6 @@ struct url_data {
     char* data;
 };
 size_t write_data(void *, size_t , size_t , struct url_data *);
-
-//  All the paths I see are relative to the root of the mounted
-//  filesystem.  In order to get to the underlying filesystem, I need to
-//  have the mountpoint.  I'll save it away early on in main(), and then
-//  whenever I need a path for something I'll call this to construct
-//  it.
-static void bb_fullpath(char fpath[PATH_MAX], const char *path)
-{
-    strcpy(fpath, ALSFS_DATA->rootdir);
-    strncat(fpath, path, PATH_MAX); // ridiculously long paths will
-				    // break here
-
-    log_msg("    bb_fullpath:  rootdir = \"%s\", path = \"%s\", fpath = \"%s\"\n",
-	    ALSFS_DATA->rootdir, path, fpath);
-}
 
 int countPathDepth(const char* path)
 {
@@ -84,7 +69,7 @@ int countPathDepth(const char* path)
 	return cont;
 }
 
-char* urlToAmiga(const char* path,char* out)
+/*char* urlToAmiga(const char* path,char* out)
 {
 	int depth;
 	depth = countPathDepth(path);
@@ -109,7 +94,7 @@ char* urlToAmiga(const char* path,char* out)
 		strcat(out,third_occ);
 	}
 	return out;	
-}
+}*/
 
 ///////////////////////////////////////////////////////////
 //
@@ -138,40 +123,23 @@ int bb_getattr(const char *path, struct stat *statbuf)
     long http_code = 0;
     char* httpbody=NULL;
 
-    if (!strcmp(path,"/"))
+    log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",path, statbuf);
+
+    if (!strcmp(path,"/")) 
     {
-  		log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",path, statbuf);
-       	bb_fullpath(fpath, path);
-       	log_msg("vafo a cercare %s",fpath);
-       	retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
-       	log_stat(statbuf);
-       	return retstat;
+    	create_dir_element(statbuf,AMIGA_DEFAULT_YEAR,AMIGA_DEFAULT_MONTH,AMIGA_DEFAULT_DAY,AMIGA_DEFAULT_HOUR,AMIGA_DEFAULT_MINUTE,AMIGA_DEFAULT_SECOND);
+    	return 0;
     }
     
     if (countPathDepth(path)==1 && !is_root_element(path))
     {
         log_msg("\nbb_getattr(path=\"%s\", skip because first level invalid dir)\n",path);
-        return -1;
-  		log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",path, statbuf);
-       	bb_fullpath(fpath, path);
-       	retstat = log_syscall("lstat", lstat(fpath, statbuf), 0);
-       	log_stat(statbuf);
-       	return retstat;
+        return 0;
     }
 
-    /*for (i=0;found==0&&i<ROOTDIRELEMENTS_NUMBER;i++)
-	if (strlen(path)>1 && !strcmp(ROOTDIRELEMENTS[i],&path[1]))
-        	found=1;*/
-
-    
-    log_msg("\nbb_getattr(path=\"%s\", statbuf=0x%08x)\n",
-	  path, statbuf);
-    bb_fullpath(fpath, path);
-
-    //if (found)
     if (is_root_element(path))
     {
-        create_dir_element(statbuf,2017,7,4,10,20,30);
+        create_dir_element(statbuf,AMIGA_DEFAULT_YEAR,AMIGA_DEFAULT_MONTH,AMIGA_DEFAULT_DAY,AMIGA_DEFAULT_HOUR,AMIGA_DEFAULT_MINUTE,AMIGA_DEFAULT_SECOND);
         return 0;
     }
     else
@@ -276,12 +244,11 @@ int bb_readlink(const char *path, char *link, size_t size)
     
     log_msg("bb_readlink(path=\"%s\", link=\"%s\", size=%d)\n",
 	  path, link, size);
-    bb_fullpath(fpath, path);
 
-    retstat = log_syscall("fpath", readlink(fpath, link, size - 1), 0);
-    if (retstat >= 0) {
-	link[retstat] = '\0';
-	retstat = 0;
+	    retstat = log_syscall("fpath", readlink(fpath, link, size - 1), 0);
+	    if (retstat >= 0) {
+		link[retstat] = '\0';
+		retstat = 0;
     }
     
     return retstat;
@@ -302,7 +269,6 @@ int bb_mknod(const char *path, mode_t mode, dev_t dev)
 
     log_msg("\nbb_mknod(path=\"%s\", mode=0%3o, dev=%lld)\n",
 	  path, mode, dev);
-    //bb_fullpath(fpath, path);
     if (!strncmp(path,"/adf/DF",7))
     {
     	WGET = 1;
@@ -319,7 +285,7 @@ int bb_mknod(const char *path, mode_t mode, dev_t dev)
     // that.
     if (S_ISREG(mode)) {
 		out=malloc(strlen(path)+1);
-		urlToAmiga(path,out);
+		trans_urlToAmiga(path,out);
 		long http_response=curl_post_create_empty_file(out);
 		free(out);
 		if (http_response=200) return 0;
@@ -346,15 +312,11 @@ int bb_mkdir(const char *path, mode_t mode)
 	    path, mode);
 	    
 	out=malloc(strlen(path)+1);
-	urlToAmiga(path,out);
+	trans_urlToAmiga(path,out);
 	long http_response=curl_post_create_empty_drawer(out);
 	free(out);
 	if (http_response=200) return 0;
 	return -1;
-		
-    bb_fullpath(fpath, path);
-
-    return log_syscall("mkdir", mkdir(fpath, mode), 0);
 }
 
 /** Remove a file */
@@ -367,15 +329,11 @@ int bb_unlink(const char *path)
 	    path);
 	
 	out=malloc(strlen(path)+1);
-	urlToAmiga(path,out);
+	trans_urlToAmiga(path,out);
 	long http_response=curl_delete_delete_file(out);
 	free(out);
 	if (http_response=200) return 0;
 	return -1;
-	
-    bb_fullpath(fpath, path);
-
-    return log_syscall("unlink", unlink(fpath), 0);
 }
 
 /** Remove a directory */
@@ -388,15 +346,11 @@ int bb_rmdir(const char *path)
 	    path);
 	    
 	out=malloc(strlen(path)+1);
-	urlToAmiga(path,out);
+	trans_urlToAmiga(path,out);
 	long http_response=curl_delete_delete_file(out);
 	free(out);
 	if (http_response=200) return 0;
 	return -1;
-	
-    bb_fullpath(fpath, path);
-
-    return log_syscall("rmdir", rmdir(fpath), 0);
 }
 
 /** Create a symbolic link */
@@ -410,7 +364,6 @@ int bb_symlink(const char *path, const char *link)
     
     log_msg("\nbb_symlink(path=\"%s\", link=\"%s\")\n",
 	    path, link);
-    bb_fullpath(flink, link);
 
     return log_syscall("symlink", symlink(path, flink), 0);
 }
@@ -442,7 +395,7 @@ int bb_rename(const char *path, const char *newpath)
 					if (asprintf(&oldName,"%s",rindex(path,'/')+1)==-1)
 						log_msg("asprintf() failed at file alsfs.c:%d",__LINE__);
 					newName=malloc(strlen(newpath)+1);
-					urlToAmiga(newpath,newName);
+					trans_urlToAmiga(newpath,newName);
 
 					for (j=0;newName[j]!=0;j++)
 						if (newName[j]==':') { newName[j]=0; break; }
@@ -462,9 +415,9 @@ int bb_rename(const char *path, const char *newpath)
 	}
    
     out=malloc(strlen(path)+1);
-	urlToAmiga(path,out);
+	trans_urlToAmiga(path,out);
 	out2=malloc(strlen(newpath)+1);
-	urlToAmiga(newpath,out2);
+	trans_urlToAmiga(newpath,out2);
     long http_response = curl_put_rename_file_drawer(out,out2);
 	free(out);
 	free(out2);
@@ -479,8 +432,7 @@ int bb_link(const char *path, const char *newpath)
     
     log_msg("\nbb_link(path=\"%s\", newpath=\"%s\")\n",
 	    path, newpath);
-    bb_fullpath(fpath, path);
-    bb_fullpath(fnewpath, newpath);
+
 
     return log_syscall("link", link(fpath, fnewpath), 0);
 }
@@ -492,7 +444,6 @@ int bb_chmod(const char *path, mode_t mode)
     
     log_msg("\nbb_chmod(fpath=\"%s\", mode=0%03o)\n",
 	    path, mode);
-    bb_fullpath(fpath, path);
 
     return log_syscall("chmod", chmod(fpath, mode), 0);
 }
@@ -505,7 +456,6 @@ int bb_chown(const char *path, uid_t uid, gid_t gid)
     
     log_msg("\nbb_chown(path=\"%s\", uid=%d, gid=%d)\n",
 	    path, uid, gid);
-    bb_fullpath(fpath, path);
 
     return log_syscall("chown", chown(fpath, uid, gid), 0);
 }
@@ -518,9 +468,6 @@ int bb_truncate(const char *path, off_t newsize)
     log_msg("\nbb_truncate(path=\"%s\", newsize=%lld)\n",
 	    path, newsize);
     return 0;
-    bb_fullpath(fpath, path);
-
-    return log_syscall("truncate", truncate(fpath, newsize), 0);
 }
 
 /** Change the access and/or modification times of a file */
@@ -546,11 +493,6 @@ int bb_utime(const char *path, struct utimbuf *ubuf)
                 ubuf->actime=lol;
                 ubuf->modtime=lol;
     return 0;
-                
-	    
-    bb_fullpath(fpath, path);
-
-    return log_syscall("utime", utime(fpath, ubuf), 0);
 }
 
 /** File open operation
@@ -674,7 +616,7 @@ int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
     }
     
     out=malloc(strlen(path)+1);
-	urlToAmiga(path,out);
+	trans_urlToAmiga(path,out);
     
     long http_response = curl_get_read_file(out,size,offset,&httpbody);
     log_msg("HTTP RESPONSE: %d\n",http_response);
@@ -777,7 +719,7 @@ int bb_write(const char *path, const char *buf, size_t size, off_t offset,
     }
 	
 	out=malloc(strlen(path)+1);
-	urlToAmiga(path,out);
+	trans_urlToAmiga(path,out);
 	rawdata=malloc(size+1);
 	memset(rawdata,0,size+1);
 	memcpy(rawdata,buf,size);
@@ -797,20 +739,28 @@ int bb_write(const char *path, const char *buf, size_t size, off_t offset,
 int bb_statfs(const char *path, struct statvfs *statv)
 {
     int retstat = 0;
-    char fpath[PATH_MAX];
+    
     
     log_msg("\nbb_statfs(path=\"%s\", statv=0x%08x)\n",
 	    path, statv);
     bzero(statv,sizeof(struct statvfs));
+
+    statv->f_bsize=1;
+	statv->f_frsize=1;
+	statv->f_blocks=1;
+	statv->f_bfree=1;
+	statv->f_bavail=1;
+	statv->f_files=1;
+	statv->f_ffree=1;
+	statv->f_favail=1;
+	statv->f_fsid=1009;
+	statv->f_flag=1;
+	statv->f_namemax=1;
+	//statv->f_type=1;
+	//strcpy(statv->f_basetype,"LOL");
+	//strcpy(statv->f_str,"LIL");
+
     return 0;
-    bb_fullpath(fpath, path);
-    
-    // get stats for underlying filesystem
-    retstat = log_syscall("statvfs", statvfs(fpath, statv), 0);
-    
-    log_statvfs(statv);
-    
-    return retstat;
 }
 
 /** Possibly flush cached data
@@ -1056,23 +1006,6 @@ int bb_opendir(const char *path, struct fuse_file_info *fi)
     char fpath[PATH_MAX];
 
 	return 0;
-    
-    log_msg("\nbb_opendir(path=\"%s\", fi=0x%08x)\n",
-	  path, fi);
-    bb_fullpath(fpath, path);
-
-    // since opendir returns a pointer, takes some custom handling of
-    // return status.
-    dp = opendir(fpath);
-    log_msg("    opendir returned 0x%p\n", dp);
-    if (dp == NULL)
-	retstat = log_error("bb_opendir opendir");
-    
-    fi->fh = (intptr_t) dp;
-    
-    log_fi(fi);
-    
-    return retstat;
 }
 
 /** Read directory
@@ -1232,7 +1165,7 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 		}
 		char* httpbody;
 		out=malloc(strlen(path)+1);
-		urlToAmiga(path,out);
+		trans_urlToAmiga(path,out);
 		long http_response = curl_get_content(out,&httpbody);
 		free(out);
 		if (http_response == 200)
@@ -1263,7 +1196,7 @@ int bb_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset
 		/*url=malloc(strlen(URL_LISTCONTENT)+strlen(path)+1);
 		strcpy(url,URL_LISTCONTENT);*/
 		out=malloc(strlen(path)+1);
-		urlToAmiga(path,out);
+		trans_urlToAmiga(path,out);
 		char *urlEncoded = curl_easy_escape(curl, out, 0);
 		if (urlEncoded) log_msg("urlencoded : ##%s##",urlEncoded);
 		//strcat(url,out);
@@ -1413,19 +1346,6 @@ void bb_destroy(void *userdata)
 int bb_access(const char *path, int mask)
 {
 	return 0;
-    int retstat = 0;
-    char fpath[PATH_MAX];
-   
-    log_msg("\nbb_access(path=\"%s\", mask=0%o)\n",
-	    path, mask);
-    bb_fullpath(fpath, path);
-    
-    retstat = access(fpath, mask);
-    
-    if (retstat < 0)
-	retstat = log_error("bb_access access");
-    
-    return retstat;
 }
 
 /**
@@ -1591,18 +1511,10 @@ int main(int argc, char *argv[])
     int fuse_stat;
     struct bb_state* alsfs_data;
 
-    // bbfs doesn't do any access checking on its own (the comment
-    // blocks in fuse.h mention some of the functions that need
-    // accesses checked -- but note there are other functions, like
-    // chown(), that also need checking!).  Since running bbfs as root
-    // will therefore open Metrodome-sized holes in the system
-    // security, we'll check if root is trying to mount the filesystem
-    // and refuse if it is.  The somewhat smaller hole of an ordinary
-    // user doing it with the allow_other flag is still there because
-    // I don't want to parse the options string.
+    
     if ((getuid() == 0) || (geteuid() == 0)) {
-	fprintf(stderr, "Running BBFS as root opens unnacceptable security holes\n");
-//	return 1;
+		fprintf(stderr, "Running BBFS as root opens unnacceptable security holes\n");
+		//	return 1;
     }
 
     // See which version of fuse we're running
@@ -1613,19 +1525,19 @@ int main(int argc, char *argv[])
     // start with a hyphen (this will break if you actually have a
     // rootpoint or mountpoint whose name starts with a hyphen, but so
     // will a zillion other programs)
-    if ((argc < 3) || (argv[argc-2][0] == '-') || (argv[argc-1][0] == '-'))
-	alsfs_usage();
+    if ((argc < 3) || (argv[argc-2][0] == '-') || (argv[argc-1][0] == '-')) alsfs_usage();
 
-    alsfs_data = malloc(sizeof(struct bb_state));
-    if (alsfs_data == NULL) {
-	perror("main calloc");
-	abort();
+	alsfs_data = malloc(sizeof(struct bb_state));
+	if (alsfs_data == NULL) 
+	{
+		perror("main calloc");
+		abort();
     }
 
     // Pull the rootdir out of the argument list and save it in my
     // internal data
     //bb_data->rootdir = realpath(argv[argc-2], NULL);
-    alsfs_data->rootdir = realpath("./rootdir",NULL);
+    //alsfs_data->rootdir = realpath("./rootdir",NULL);
     alsfs_data->alsfs_webserver = strdup(argv[argc-2]);
     argv[argc-2] = argv[argc-1];
     argv[argc-1] = NULL;

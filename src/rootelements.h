@@ -33,7 +33,7 @@
 #define READADF "readAdf"
 #define TESTFLOPPYDISK "testFloppyDisk"
 
-#define ROOTDIRELEMENTS_NUMBER 3
-static const char *ROOTDIRELEMENTS[ROOTDIRELEMENTS_NUMBER]={"volumes","adf","hdf"};
+#define ROOTDIRELEMENTS_NUMBER 2
+static const char *ROOTDIRELEMENTS[ROOTDIRELEMENTS_NUMBER]={"volumes","adf"};
 
 

@@ -31,6 +31,7 @@
 #include "alsfs_curl.h"
 #include <assert.h>
 #include <unistd.h>
+#include "virtual_stat.h"
 
 int CURL_READY=1;
 
@@ -308,55 +309,54 @@ int curl_stat_amiga_file(const char* path,struct stat *statbuf)
 	char* httpbody;
 	
 	out=malloc(strlen(path)+1);
-        urlToAmiga(path,out);
-        long http_response = curl_get_stat(out,&httpbody);
-        free(out);
-        log_msg("HTTP RESPONSE: %d\n",http_response);
-        switch (http_response)
-        {
-              case 404:	log_msg("### File not found ###\n");
-                        memset (statbuf,0,sizeof(struct stat));
-                        return -2;
-              case 200:	log_msg("Entering 200\n");
-						if (httpbody==NULL)
-						{
-							log_msg("httpbody is NULL ");
-							return 0;
-						}
-                                         log_msg("httpbody is NOT NULL ");
-                                         log_msg("Http body : %s\n",httpbody);
-                                          json_object * jobj = json_tokener_parse(httpbody);
-                                          json_object* returnObj;
-                                          json_object_object_get_ex(jobj, "st_size",&returnObj);
-                                          const char *st_size = json_object_get_string(returnObj);
+	trans_urlToAmiga(path,out);
+	long http_response = curl_get_stat(out,&httpbody);
+	free(out);
+	log_msg("HTTP RESPONSE: %d\n",http_response);
+	switch (http_response)
+	{
+		case 404:	log_msg("### File not found ###\n");
+					memset (statbuf,0,sizeof(struct stat));
+					return -2;
+		case 200:	log_msg("Entering 200\n");
+					if (httpbody==NULL)
+					{
+						log_msg("httpbody is NULL ");
+						return 0;
+					}
+					log_msg("httpbody is NOT NULL ");
+					log_msg("Http body : %s\n",httpbody);
+					json_object * jobj = json_tokener_parse(httpbody);
+					json_object* returnObj;
+					json_object_object_get_ex(jobj, "st_size",&returnObj);
+					const char *st_size = json_object_get_string(returnObj);
 								
-                                          json_object_object_get_ex(jobj, "directory",&returnObj);
-                                          int directory = atoi(json_object_get_string(returnObj));
+					json_object_object_get_ex(jobj, "directory",&returnObj);
+					int directory = atoi(json_object_get_string(returnObj));
 				                                
-                                          json_object_object_get_ex(jobj, "days",&returnObj);
-                                          int days = atoi(json_object_get_string(returnObj));
+					json_object_object_get_ex(jobj, "days",&returnObj);
+					int days = atoi(json_object_get_string(returnObj));
 				                                
-                                          json_object_object_get_ex(jobj, "minutes",&returnObj);
-                                          int minutes = atoi(json_object_get_string(returnObj));
+					json_object_object_get_ex(jobj, "minutes",&returnObj);
+					int minutes = atoi(json_object_get_string(returnObj));
 				                                
-                                          json_object_object_get_ex(jobj, "seconds",&returnObj);
-                                          int seconds = atoi(json_object_get_string(returnObj));
+					json_object_object_get_ex(jobj, "seconds",&returnObj);
+					int seconds = atoi(json_object_get_string(returnObj));
 
-                                          log_msg("stsize : ##%s##",st_size);
+					log_msg("stsize : ##%s##",st_size);
 
-                                          time_t amigatime = amigadate_to_pc(days,minutes,seconds);
+					time_t amigatime = amigadate_to_pc(days,minutes,seconds);
 
-                                          if (directory) create_dir_element(statbuf,2017,7,4,10,20,30);
-                                          else create_file_element(statbuf,2017,7,4,10,20,30,atol(st_size));
-                                          statbuf->st_atime = amigatime;
-                                          statbuf->st_mtime = amigatime;
-                                          statbuf->st_ctime = amigatime;
-                                          statbuf->st_size = (size_t)atol(st_size);
-                                          return 0;
-                                default :	log_msg("%s response not handled\n",http_response);
-        }
-        return 0;
-	
+					if (directory) create_dir_element(statbuf,2017,7,4,10,20,30);
+					else create_file_element(statbuf,2017,7,4,10,20,30,atol(st_size));
+					statbuf->st_atime = amigatime;
+					statbuf->st_mtime = amigatime;
+					statbuf->st_ctime = amigatime;
+					statbuf->st_size = (size_t)atol(st_size);
+					return 0;
+		default :	log_msg("%s response not handled\n",http_response);
+	}
+	return 0;
 }
 
 char* trans_urlToAmiga(const char* path,char* out)

@@ -31,7 +31,7 @@ FILE *log_open()
     
     // very first thing, open up the logfile and mark that we got in
     // here.  If we can't open the logfile, we're dead.
-    logfile = fopen("bbfs.log", "w");
+    logfile = fopen("/tmp/alsfs.log", "w");
     if (logfile == NULL) {
 	perror("logfile");
 	exit(EXIT_FAILURE);
@@ -86,7 +86,7 @@ void log_fuse_context(struct fuse_context *context)
     //	void *private_data;
     log_struct(context, private_data, %08x, );
     log_struct(((struct bb_state *)context->private_data), logfile, %08x, );
-    log_struct(((struct bb_state *)context->private_data), rootdir, %s, );
+    //log_struct(((struct bb_state *)context->private_data), rootdir, %s, );
 	
     /** Umask of the calling process (introduced in version 2.8) */
     //	mode_t umask;

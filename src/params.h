@@ -33,7 +33,7 @@
 #include <stdio.h>
 struct bb_state {
     FILE *logfile;
-    char *rootdir;
+    //char *rootdir;
     char* alsfs_webserver;
 };
 #define ALSFS_DATA ((struct bb_state *) fuse_get_context()->private_data)
@@ -41,3 +41,10 @@ struct bb_state {
 #endif
 
 #define ALSFS_BLK_SIZE 4096
+
+#define AMIGA_DEFAULT_YEAR 1984
+#define AMIGA_DEFAULT_MONTH 1
+#define AMIGA_DEFAULT_DAY 4
+#define AMIGA_DEFAULT_HOUR 0
+#define AMIGA_DEFAULT_MINUTE 0
+#define AMIGA_DEFAULT_SECOND 0
