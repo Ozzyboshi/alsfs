@@ -562,10 +562,13 @@ int bb_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_
 
     if (!strncmp(path,"/adf/DF",7))
     {
-    	if (asprintf(&out,"%c",path[strlen(path)-1])==-1)
-    		log_msg("asprintf() failed at file alsfs.c:%d",__LINE__);
-    	long http_response = curl_get_read_adf(atoi(out),size,offset,&httpbody);
-    	free(out);
+    	char* first_occ = index(path,'/')+1;
+		char* second_occ = index(first_occ,'/')+1;
+		char trackdevicenumber[2];
+		trackdevicenumber[0] = second_occ[2];
+		trackdevicenumber[1]=0;
+		log_msg("\ntrackdevice %d\n",atoi(trackdevicenumber));
+    	long http_response = curl_get_read_adf(atoi(trackdevicenumber),size,offset,&httpbody);
     	if (http_response == 200)
     	{
     		if (httpbody==NULL)
