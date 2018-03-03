@@ -445,7 +445,7 @@ int bb_chmod(const char *path, mode_t mode)
     log_msg("\nbb_chmod(fpath=\"%s\", mode=0%03o)\n",
 	    path, mode);
 
-    return log_syscall("chmod", chmod(fpath, mode), 0);
+    return  0;
 }
 
 /** Change the owner and group of a file */
