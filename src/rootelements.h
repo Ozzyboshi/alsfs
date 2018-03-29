@@ -21,6 +21,7 @@
 #define LISTFLOPPIES "listFloppies"
 #define LISTCONTENT "listContent"
 #define LISTSTAT "stat"
+#define LISTSTATFS "statfs"
 #define STOREBINARY "storeBinary"
 #define RENAME "renameFileOrDrawer"
 #define RELABEL "relabel"

@@ -741,29 +741,28 @@ int bb_write(const char *path, const char *buf, size_t size, off_t offset,
  */
 int bb_statfs(const char *path, struct statvfs *statv)
 {
-    int retstat = 0;
-    
-    
     log_msg("\nbb_statfs(path=\"%s\", statv=0x%08x)\n",
 	    path, statv);
-    bzero(statv,sizeof(struct statvfs));
+    char appo[256];
+    sprintf(appo,"/%s/",ROOTDIRELEMENTS[0]);
+    if (countPathDepth(path)<2 || (strncmp(path,appo,strlen(appo))))
+    {
+    	bzero(statv,sizeof(struct statvfs));
 
-    statv->f_bsize=1;
-	statv->f_frsize=1;
-	statv->f_blocks=1;
-	statv->f_bfree=1;
-	statv->f_bavail=1;
-	statv->f_files=1;
-	statv->f_ffree=1;
-	statv->f_favail=1;
-	statv->f_fsid=1009;
-	statv->f_flag=1;
-	statv->f_namemax=1;
-	//statv->f_type=1;
-	//strcpy(statv->f_basetype,"LOL");
-	//strcpy(statv->f_str,"LIL");
-
-    return 0;
+	    statv->f_bsize=1;
+		statv->f_frsize=1;
+		statv->f_blocks=1;
+		statv->f_bfree=1;
+		statv->f_bavail=1;
+		statv->f_files=1;
+		statv->f_ffree=1;
+		statv->f_favail=1;
+		statv->f_fsid=1009;
+		statv->f_flag=1;
+		statv->f_namemax=1;
+    	return 0;
+    }
+    return curl_statfs_amiga_file(path,statv);
 }
 
 /** Possibly flush cached data

@@ -255,6 +255,14 @@ long curl_get_stat(const char* path,char** buf)
 	return amiga_js_call(LISTSTAT,jobj,"GET",buf);
 }
 
+long curl_get_statfs(const char* path,char** buf)
+{
+	json_object * jobj = json_object_new_object();
+	json_object *jstring = json_object_new_string(path);
+	json_object_object_add(jobj,"path", jstring);
+	return amiga_js_call(LISTSTATFS,jobj,"GET",buf);
+}
+
 long curl_get_content(const char* path,char** buf)
 {
 	json_object * jobj = json_object_new_object();
@@ -296,6 +304,63 @@ int curl_get_test_floppy_disk(int trackDevice,char** buf)
 	json_object *jstring = json_object_new_int(trackDevice);
 	json_object_object_add(jobj,"trackDevice", jstring);
 	return amiga_js_call(TESTFLOPPYDISK,jobj,"GET",buf);
+}
+
+int curl_statfs_amiga_file(const char* path,struct statvfs *statbuf)
+{
+	char * out;
+	CURL *curl;
+	struct curl_url_data data;
+	int http_code;
+	char* url;
+	CURLcode res;
+	char* httpbody;
+	
+	out=malloc(strlen(path)+1);
+	trans_urlToAmiga(path,out);
+	long http_response = curl_get_statfs(out,&httpbody);
+	free(out);
+	log_msg("HTTP RESPONSE: %d\n",http_response);
+	switch (http_response)
+	{
+		case 404:	log_msg("### File not found ###\n");
+					memset (statbuf,0,sizeof(struct stat));
+					return -2;
+		case 200:	log_msg("Entering 200\n");
+					if (httpbody==NULL)
+					{
+						log_msg("httpbody is NULL ");
+						return 0;
+					}
+					log_msg("httpbody is NOT NULL ");
+					log_msg("Http body : %s\n",httpbody);
+					json_object * jobj = json_tokener_parse(httpbody);
+					json_object* returnObj;
+					json_object_object_get_ex(jobj, "blksize",&returnObj);
+					int blksize = atoi(json_object_get_string(returnObj));
+								
+					json_object_object_get_ex(jobj, "numblocks",&returnObj);
+					int numblocks = atoi(json_object_get_string(returnObj));
+				                                
+					json_object_object_get_ex(jobj, "numblocksused",&returnObj);
+					int numblocksused = atoi(json_object_get_string(returnObj));
+				                                
+					statbuf->f_bsize=blksize;
+					statbuf->f_frsize=blksize;
+					statbuf->f_blocks=numblocks;
+					statbuf->f_bfree=numblocks-numblocksused;
+					statbuf->f_bavail=numblocks-numblocksused;
+					statbuf->f_files=1;
+					statbuf->f_ffree=numblocks-numblocksused;
+					statbuf->f_favail=numblocks-numblocksused;
+					statbuf->f_fsid=1009;
+					statbuf->f_flag=1;
+					statbuf->f_namemax=1;
+
+					return 0;
+		default :	log_msg("%s response not handled\n",http_response);
+	}
+	return 0;
 }
 
 int curl_stat_amiga_file(const char* path,struct stat *statbuf)
