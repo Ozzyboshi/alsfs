@@ -919,6 +919,7 @@ int bb_fsync(const char *path, int datasync, struct fuse_file_info *fi)
     log_msg("\nbb_fsync(path=\"%s\", datasync=%d, fi=0x%08x)\n",
 	    path, datasync, fi);
     log_fi(fi);
+    return 0;
     
     // some unix-like systems (notably freebsd) don't have a datasync call
 #ifdef HAVE_FDATASYNC
